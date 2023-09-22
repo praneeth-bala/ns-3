@@ -3,7 +3,7 @@
 
 def build(bld):
     if bld.env['ENABLE_MPI']:
-        module = bld.create_ns3_module('point-to-point', ['network', 'mpi'])
+        module = bld.create_ns3_module('point-to-point', ['network', 'mpi','cosim'])
     else:
         module = bld.create_ns3_module('point-to-point', ['network'])
     module.source = [
@@ -11,9 +11,11 @@ def build(bld):
         'model/point-to-point-channel.cc',
         'model/ppp-header.cc',
         'helper/point-to-point-helper.cc',
+        'helper/point-to-point-helper-simbricks.cc',
         ]
     if bld.env['ENABLE_MPI']:
         module.source.append('model/point-to-point-remote-channel.cc')
+        module.source.append('model/point-to-point-remote-channel-simbricks.cc')
     
     module_test = bld.create_ns3_module_test_library('point-to-point')
     module_test.source = [
@@ -27,9 +29,11 @@ def build(bld):
         'model/point-to-point-channel.h',
         'model/ppp-header.h',
         'helper/point-to-point-helper.h',
+        'helper/point-to-point-helper-simbricks.h',
         ]
     if bld.env['ENABLE_MPI']:
         headers.source.append('model/point-to-point-remote-channel.h')
+        headers.source.append('model/point-to-point-remote-channel-simbricks.h')
 
     if (bld.env['ENABLE_EXAMPLES']):
         bld.recurse('examples')
