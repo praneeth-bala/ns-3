@@ -40,7 +40,7 @@ def build(bld):
         'model/cosim-manager.h',
         'model/cosim-adapter-nicif.h',
         'model/cosim-nicif.h',
-        'model/simbricks-receiver.cc',
+        'model/simbricks-receiver.h',
         'model/cosim-simulator-impl.h',
         'helper/cosim-helper.h',
         ]

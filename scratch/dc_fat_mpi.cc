@@ -10,7 +10,7 @@
 #include <mpi.h>
 
 #define START 0.0
-#define END 20.0
+#define END 2.0
 
 using namespace ns3;
 
@@ -39,7 +39,7 @@ void client(ns3::Ipv4Address add, ns3::Ptr<Node> node){
 	OnOffHelper client("ns3::TcpSocketFactory", InetSocketAddress(add, 8080));
 	client.SetAttribute ("OnTime", StringValue("ns3::ConstantRandomVariable[Constant=50]"));
 	client.SetAttribute ("OffTime", StringValue("ns3::ConstantRandomVariable[Constant=0]"));
-	client.SetAttribute ("DataRate", DataRateValue (DataRate ("100Mbps")));
+	client.SetAttribute ("DataRate", DataRateValue (DataRate ("10Mbps")));
 	client.SetAttribute ("PacketSize", UintegerValue (2000));
 	
 	ApplicationContainer clientApp = client.Install (node);
