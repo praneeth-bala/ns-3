@@ -178,11 +178,11 @@ bool CosimManager::Transmit (Ptr<Packet> packet, const Time& rxTime, uint32_t no
 
   SimbricksNetIfOutSend(m_nsif[systemId], msg, SIMBRICKS_PROTO_NET_MSG_PACKET);
 
-  if (m_syncMode) {
-    Simulator::Cancel (m_syncTxEvent[systemId]);
-    m_syncTxEvent[systemId] = Simulator::Schedule ( PicoSeconds (m_bifparam[systemId]->sync_interval),
-            &CosimManager::SendSyncEvent, this, systemId);
-  }
+  // if (m_syncMode) {
+  //   Simulator::Cancel (m_syncTxEvent[systemId]);
+  //   m_syncTxEvent[systemId] = Simulator::Schedule ( PicoSeconds (m_bifparam[systemId]->sync_interval),
+  //           &CosimManager::SendSyncEvent, this, systemId);
+  // }
 
   return true;
 }

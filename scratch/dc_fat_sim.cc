@@ -93,7 +93,7 @@ int main (int argc, char *argv[])
 
 	PointToPointHelperSimbricks ptp1(connector, systemId);
 	ptp1.SetDeviceAttribute ("DataRate", StringValue ("1Gbps"));
-	ptp1.SetChannelAttribute ("Delay", StringValue ("5000ns"));
+	ptp1.SetChannelAttribute ("Delay", StringValue ("500ns"));
 
 	InternetStackHelper stack;
 

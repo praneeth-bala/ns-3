@@ -112,11 +112,11 @@ int main (int argc, char *argv[])
 
 	PointToPointHelper ptp1,ptp2,ptp3;
 	ptp1.SetDeviceAttribute ("DataRate", StringValue ("1Gbps"));
-	ptp1.SetChannelAttribute ("Delay", StringValue ("5000ns"));
+	ptp1.SetChannelAttribute ("Delay", StringValue ("500ns"));
 	ptp2.SetDeviceAttribute ("DataRate", StringValue ("1Gbps"));
-	ptp2.SetChannelAttribute ("Delay", StringValue ("5000ns"));
+	ptp2.SetChannelAttribute ("Delay", StringValue ("500ns"));
 	ptp3.SetDeviceAttribute ("DataRate", StringValue ("1Gbps"));
-	ptp3.SetChannelAttribute ("Delay", StringValue ("5000ns"));
+	ptp3.SetChannelAttribute ("Delay", StringValue ("500ns"));
 
 	InternetStackHelper stack;
 
