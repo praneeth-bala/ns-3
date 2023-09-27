@@ -15,13 +15,12 @@
  */
 
 #include "ns3/core-module.h"
-#include "ns3/cosim-manager.h"
+#include "ns3/cosim-simulator-impl.h"
 #include "ns3/network-module.h"
 #include "ns3/internet-module.h"
 #include "ns3/point-to-point-module.h"
 #include "ns3/applications-module.h"
 #include "ns3/ipv4-global-routing-helper.h"
-#include <chrono>
  
 using namespace ns3;
 
@@ -45,10 +44,8 @@ main (int argc, char *argv[])
 	}
 
   GlobalValue::Bind("SimulatorImplementationType", StringValue("ns3::CosimSimulatorImpl"));
-  GlobalValue::Bind("SysId", UintegerValue(systemId));
-
-  CosimManager connector;
-  connector.dir = dir;
+  dynamic_cast<CosimSimulatorImpl*>(PeekPointer(Simulator::GetImplementation()))->systemId = systemId;
+  dynamic_cast<CosimSimulatorImpl*>(PeekPointer(Simulator::GetImplementation()))->dir = dir;
 
   Time::SetResolution (Time::NS);
   // LogComponentEnable ("UdpEchoClientApplication", LOG_LEVEL_INFO);
@@ -66,7 +63,7 @@ main (int argc, char *argv[])
   n3.Add(n1.Get(0));
 
 
-  PointToPointHelperSimbricks pointToPoint(connector, systemId);
+  PointToPointHelperSimbricks pointToPoint;
   pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("5Mbps"));
   pointToPoint.SetChannelAttribute ("Delay", StringValue ("2ms"));
 
@@ -87,6 +84,8 @@ main (int argc, char *argv[])
   Ipv4InterfaceContainer i3 = address.Assign (d3);
 
   if(systemId==0){
+    LogComponentEnable ("UdpEchoClientApplication", LOG_LEVEL_INFO);
+    LogComponentEnable ("UdpEchoServerApplication", LOG_LEVEL_INFO);
     UdpEchoServerHelper echoServer (9);
 
     ApplicationContainer serverApps = echoServer.Install (n1.Get (0));
@@ -137,21 +136,10 @@ main (int argc, char *argv[])
     clientApps.Stop (Seconds (10.0));
   }
   Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
-  connector.StartCreate(pointToPoint.conns, systemId);
 
   Simulator::Stop (Seconds(10));
-
-  using std::chrono::high_resolution_clock;
-  using std::chrono::duration_cast;
-  using std::chrono::duration;
-  using std::chrono::milliseconds;
-	auto t1 = high_resolution_clock::now();
-
+  
   Simulator::Run ();
-
-  auto t2 = high_resolution_clock::now();
-  duration<double, std::milli> ms_double = t2 - t1;
-  std::cout << "Runtime = " << ms_double.count()/1000 << std::endl;
 
   Simulator::Destroy ();
   return 0;

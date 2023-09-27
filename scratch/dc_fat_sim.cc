@@ -5,7 +5,7 @@
 #include "ns3/point-to-point-module.h"
 #include "ns3/applications-module.h"
 #include "ns3/ipv4-global-routing-helper.h"
-#include <chrono>
+#include "ns3/cosim-simulator-impl.h"
 
 #define START 0.0
 #define END 2.0
@@ -61,10 +61,8 @@ int main (int argc, char *argv[])
 	}
 
 	GlobalValue::Bind("SimulatorImplementationType", StringValue("ns3::CosimSimulatorImpl"));
-	GlobalValue::Bind("SysId", UintegerValue(systemId));
-
-	CosimManager connector;
-	connector.dir = dir;
+	dynamic_cast<CosimSimulatorImpl*>(PeekPointer(Simulator::GetImplementation()))->systemId = systemId;
+	dynamic_cast<CosimSimulatorImpl*>(PeekPointer(Simulator::GetImplementation()))->dir = dir;
 	// connector.m_bifparam.sync_interval = 100UL*1000UL;
 	// connector.m_pollDelay = Time(PicoSeconds (connector.m_bifparam.sync_interval));
 	// connector.m_bifparam.link_latency = 500UL*1000UL;
@@ -91,7 +89,7 @@ int main (int argc, char *argv[])
 	Ipv4InterfaceContainer agginti[k][k/2][k/2];
 	Ipv4InterfaceContainer edgei[k][k/2][k/2];
 
-	PointToPointHelperSimbricks ptp1(connector, systemId);
+	PointToPointHelperSimbricks ptp1;
 	ptp1.SetDeviceAttribute ("DataRate", StringValue ("1Gbps"));
 	ptp1.SetChannelAttribute ("Delay", StringValue ("500ns"));
 
@@ -190,21 +188,10 @@ int main (int argc, char *argv[])
 
 	// Config::SetDefault("ns3::Ipv4GlobalRouting::RandomEcmpRouting",BooleanValue(true));
 	Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
-	connector.StartCreate(ptp1.conns, systemId);
 	
 	Simulator::Stop(Seconds(END+1));
-	
-	using std::chrono::high_resolution_clock;
-	using std::chrono::duration_cast;
-	using std::chrono::duration;
-	using std::chrono::milliseconds;
-	auto t1 = high_resolution_clock::now();
 
 	Simulator::Run ();
-
-	auto t2 = high_resolution_clock::now();
-	duration<double, std::milli> ms_double = t2 - t1;
-	std::cout << "Runtime = " << ms_double.count()/1000 << std::endl;
 
 	Simulator::Destroy ();
 	return 0;

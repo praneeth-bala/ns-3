@@ -101,6 +101,8 @@ main (int argc, char *argv[])
   Ipv4InterfaceContainer i3 = address.Assign (d3);
 
   if(systemId==0){
+    LogComponentEnable ("UdpEchoClientApplication", LOG_LEVEL_INFO);
+    LogComponentEnable ("UdpEchoServerApplication", LOG_LEVEL_INFO);
     UdpEchoServerHelper echoServer (9);
 
     ApplicationContainer serverApps = echoServer.Install (n1.Get (0));

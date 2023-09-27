@@ -70,14 +70,10 @@ PointToPointRemoteChannelSimbricks::TransmitStart (
 
   // // Calculate the rxTime (absolute)
   Time rxTime = Simulator::Now () + txTime + GetDelay ();
-  // m_connector->Transmit(p->Copy(), rxTime, dst->GetNode ()->GetId (), dst->GetIfIndex ());
-  Simulator::Schedule ( txTime , &CosimManager::Transmit, m_connector, p->Copy(), rxTime, dst->GetNode ()->GetId (), dst->GetIfIndex ());
+  dynamic_cast<CosimSimulatorImpl*>(PeekPointer(Simulator::GetImplementation()))->Transmit(p->Copy(), rxTime, dst->GetNode ()->GetId (), dst->GetIfIndex ());
+  // Simulator::Schedule ( txTime , &CosimManager::Transmit, m_connector, p->Copy(), rxTime, dst->GetNode ()->GetId (), dst->GetIfIndex ());
   // MpiInterface::SendPacket (p->Copy (), rxTime, dst->GetNode ()->GetId (), dst->GetIfIndex ());
   return true;
-}
-
-Time PointToPointRemoteChannelSimbricks::getDelay(){
-  return GetDelay();
 }
 
 } // namespace ns3

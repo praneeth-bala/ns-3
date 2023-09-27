@@ -43,13 +43,11 @@ namespace ns3 {
 
 NS_LOG_COMPONENT_DEFINE ("PointToPointHelperSimbricks");
 
-PointToPointHelperSimbricks::PointToPointHelperSimbricks (CosimManager &connector, int systemId)
+PointToPointHelperSimbricks::PointToPointHelperSimbricks ()
 {
   m_queueFactory.SetTypeId ("ns3::DropTailQueue<Packet>");
   m_deviceFactory.SetTypeId ("ns3::PointToPointNetDevice");
   m_channelFactory.SetTypeId ("ns3::PointToPointChannel");
-  m_connector = &connector;
-  currSystemId = systemId;
 #ifdef NS3_MPI
   m_remoteChannelFactory.SetTypeId ("ns3::PointToPointRemoteChannelSimbricks");
 #endif
@@ -266,13 +264,11 @@ PointToPointHelperSimbricks::Install (Ptr<Node> a, Ptr<Node> b)
   bool useNormalChannel = true;
   uint32_t n1SystemId = a->GetSystemId ();
   uint32_t n2SystemId = b->GetSystemId ();
+  int currSystemId = dynamic_cast<CosimSimulatorImpl*>(PeekPointer(Simulator::GetImplementation()))->GetSystemId();
   if (n1SystemId != currSystemId || n2SystemId != currSystemId) 
     {
       useNormalChannel = false;
       channel = m_remoteChannelFactory.Create<PointToPointRemoteChannelSimbricks> ();
-      chan_ptr = dynamic_cast<PointToPointRemoteChannelSimbricks*> (PeekPointer(channel));
-      conns[n2SystemId][n1SystemId] = chan_ptr->getDelay().ToInteger (Time::PS);
-      conns[n1SystemId][n2SystemId] = chan_ptr->getDelay().ToInteger (Time::PS);
     }
   if (useNormalChannel)
     {
@@ -280,7 +276,6 @@ PointToPointHelperSimbricks::Install (Ptr<Node> a, Ptr<Node> b)
     }
   else
     {
-      chan_ptr->m_connector = m_connector;
       Ptr<SimbricksReceiver> mpiRecA = CreateObject<SimbricksReceiver> ();
       Ptr<SimbricksReceiver> mpiRecB = CreateObject<SimbricksReceiver> ();
       mpiRecA->SetReceiveCallback (MakeCallback (&PointToPointNetDevice::Receive, devA));

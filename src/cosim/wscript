@@ -19,7 +19,6 @@ def build(bld):
     module.source = [
         'model/cosim.cc',
         'model/cosim-adapter.cc',
-        'model/cosim-manager.cc',
         'model/cosim-adapter-nicif.cc',
         'model/cosim-nicif.cc',
         'model/simbricks-receiver.cc',
@@ -37,7 +36,6 @@ def build(bld):
     headers.source = [
         'model/cosim.h',
         'model/cosim-adapter.h',
-        'model/cosim-manager.h',
         'model/cosim-adapter-nicif.h',
         'model/cosim-nicif.h',
         'model/simbricks-receiver.h',

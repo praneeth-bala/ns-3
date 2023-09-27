@@ -22,7 +22,6 @@
 #include "cosim-simulator-impl.h"
 #include "ns3/scheduler.h"
 #include "ns3/event-impl.h"
-#include "ns3/global-value.h"
 
 #include "ns3/ptr.h"
 #include "ns3/pointer.h"
@@ -47,12 +46,6 @@ namespace ns3 {
 NS_LOG_COMPONENT_DEFINE ("CosimSimulatorImpl");
 
 NS_OBJECT_ENSURE_REGISTERED (CosimSimulatorImpl);
-
-static GlobalValue sysId = GlobalValue
-    ("SysId",
-    "The system id",
-    UintegerValue (0),
-    MakeUintegerChecker<uint32_t> ());
 
 TypeId
 CosimSimulatorImpl::GetTypeId (void)
@@ -81,13 +74,160 @@ CosimSimulatorImpl::CosimSimulatorImpl ()
   m_unscheduledEvents = 0;
   m_eventCount = 0;
   m_eventsWithContextEmpty = true;
+  m_syncMode = true;
   m_main = SystemThread::Self ();
 }
 
 CosimSimulatorImpl::~CosimSimulatorImpl ()
 {
   NS_LOG_FUNCTION (this);
+  for(auto i = m_nsif.begin(); i != m_nsif.end(); i++) delete i->second;
+  for(auto i = m_bifparam.begin(); i != m_bifparam.end(); i++) delete i->second;
 }
+
+bool CosimSimulatorImpl::Transmit (Ptr<Packet> packet, const Time& rxTime, uint32_t node, uint32_t dev)
+{
+  volatile union SimbricksProtoNetMsg *msg;
+  volatile struct SimbricksProtoNetMsgPacket *recv;
+
+  /*NS_ABORT_MSG_IF (packet->GetSize () > 2048,
+          "CosimSimulatorImpl::Transmit: packet too large");*/
+
+  Ptr<Node> nd = NodeList::GetNode(node);
+  int systemId = nd->GetSystemId();
+  msg = AllocTx (systemId);
+  recv = &msg->packet;
+
+  uint64_t t = rxTime.GetInteger ();
+  uint64_t* pTime = (uint64_t *)(recv->data);
+  *pTime++ = t;
+  uint32_t* pData = reinterpret_cast<uint32_t *> (pTime);
+  *pData++ = node;
+  *pData++ = dev;
+
+  recv->len = packet->GetSize ()+8+4+4;
+  recv->port = 0;
+  packet->CopyData (reinterpret_cast<uint8_t *> (pData), packet->GetSize ());
+
+  SimbricksNetIfOutSend(m_nsif[systemId], msg, SIMBRICKS_PROTO_NET_MSG_PACKET);
+
+  // if (m_syncMode) {
+  //   Simulator::Cancel (m_syncTxEvent[systemId]);
+  //   m_syncTxEvent[systemId] = Simulator::Schedule ( PicoSeconds (m_bifparam[systemId]->sync_interval),
+  //           &CosimSimulatorImpl::SendSyncEvent, this, systemId);
+  // }
+
+  return true;
+}
+
+void CosimSimulatorImpl::ReceivedPacket (const void *buf, size_t len, uint64_t time)
+{ 
+    uint64_t* pTime = (uint64_t *)(buf);
+    uint64_t tim = *pTime++;
+    uint32_t* pData = reinterpret_cast<uint32_t *> (pTime);
+    uint32_t node = *pData++;
+    uint32_t dev  = *pData++;
+
+    Time rxTime (tim);
+
+    int count = sizeof (time) + sizeof (node) + sizeof (dev);
+    Ptr<Packet> packet = Create<Packet> (reinterpret_cast<uint8_t *> (pData), len - 16);
+    // Find the correct node/device to schedule receive event
+    Ptr<Node> pNode = NodeList::GetNode (node);
+    Ptr<SimbricksReceiver> pMpiRec = 0;
+    uint32_t nDevices = pNode->GetNDevices ();
+    for (uint32_t i = 0; i < nDevices; ++i)
+      {
+        Ptr<NetDevice> pThisDev = pNode->GetDevice (i);
+        if (pThisDev->GetIfIndex () == dev)
+          {
+            pMpiRec = pThisDev->GetObject<SimbricksReceiver> ();
+            break;
+          }
+      }
+
+    NS_ASSERT (pNode && pMpiRec);
+
+    // Schedule the rx event
+    Simulator::ScheduleWithContext (pNode->GetId (), rxTime - Simulator::Now (),
+                                    &SimbricksReceiver::Receive, pMpiRec, packet);
+}
+
+
+volatile union SimbricksProtoNetMsg* CosimSimulatorImpl::AllocTx (int systemId)
+{
+  volatile union SimbricksProtoNetMsg *msg;
+  do {
+    msg = SimbricksNetIfOutAlloc (m_nsif[systemId], Simulator::Now ().ToInteger (Time::PS));
+  } while (!msg);
+
+  //TODO: fix it to wait until alloc success
+  NS_ABORT_MSG_IF (msg == NULL,
+          "SimbricksAdapter::AllocTx: SimbricksNetIfOutAlloc failed");
+  return msg;
+}
+
+void CosimSimulatorImpl::SendSyncEvent (int systemId)
+{
+  volatile union SimbricksProtoNetMsg *msg = AllocTx (systemId);
+  NS_ABORT_MSG_IF (msg == NULL,
+          "SimbricksAdapter::AllocTx: SimbricksNetIfOutAlloc failed");
+
+  // msg->sync.own_type = SIMBRICKS_PROTO_NET_N2D_MSG_SYNC |
+  //     SIMBRICKS_PROTO_NET_N2D_OWN_DEV;
+  SimbricksBaseIfOutSend(&m_nsif[systemId]->base, &msg->base, SIMBRICKS_PROTO_MSG_TYPE_SYNC);
+  // std::cout << Simulator:: Now() << "\n";
+
+  m_syncTxEvent[systemId] = Simulator::Schedule ( PicoSeconds (m_bifparam[systemId]->sync_interval), &CosimSimulatorImpl::SendSyncEvent, this, systemId);
+}
+
+bool CosimSimulatorImpl::Poll (int systemId)
+{
+  volatile union SimbricksProtoNetMsg *msg;
+  uint8_t ty;
+
+  msg = SimbricksNetIfInPoll (m_nsif[systemId], Simulator::GetMaximumSimulationTime ().ToInteger (Time::PS));
+  m_nextTime[systemId] = PicoSeconds (SimbricksNetIfInTimestamp (m_nsif[systemId]));
+  
+  if (!msg)
+    return false;
+
+  ty = SimbricksNetIfInType(m_nsif[systemId], msg);
+  switch (ty) {
+    case SIMBRICKS_PROTO_NET_MSG_PACKET:
+      ReceivedPacket ((const void *) msg->packet.data, msg->packet.len, msg->base.header.timestamp);
+      break;
+
+    case SIMBRICKS_PROTO_MSG_TYPE_SYNC:
+      break;
+
+    default:
+      NS_ABORT_MSG ("CosimSimulatorImpl::Poll: unsupported message type " << ty);
+  }
+
+  SimbricksNetIfInDone (m_nsif[systemId], msg);
+  return true;
+}
+
+
+void CosimSimulatorImpl::PollEvent (int systemId)
+{
+  // std::cout << Simulator::Now () << "\n";
+  while (Poll (systemId));
+
+  if (m_syncMode){
+    while (m_nextTime[systemId] <= Simulator::Now ()){
+      Poll (systemId);}
+
+    m_pollEvent[systemId] = Simulator::Schedule (m_nextTime[systemId] -  Simulator::Now (),
+            &CosimSimulatorImpl::PollEvent, this, systemId);
+  } else {
+    m_pollEvent[systemId] = Simulator::Schedule (m_pollDelay[systemId],
+            &CosimSimulatorImpl::PollEvent, this, systemId);
+
+  }
+}
+
 
 void
 CosimSimulatorImpl::DoDispose (void)
@@ -117,6 +257,143 @@ CosimSimulatorImpl::Destroy ()
           ev->Invoke ();
         }
     }
+
+  for(auto i = m_nsif.begin(); i != m_nsif.end(); i++){
+    if (m_syncMode)
+      Simulator::Cancel (m_syncTxEvent[i->first]);
+    Simulator::Cancel (m_pollEvent[i->first]);
+  }
+}
+
+void CosimSimulatorImpl::SetupInterconnections (){
+  NodeContainer c = NodeContainer::GetGlobal ();
+  int systemId = GetSystemId();
+  for (NodeContainer::Iterator iter = c.Begin (); iter != c.End (); ++iter)
+    {
+      if ((*iter)->GetSystemId () != systemId)
+        {
+          continue;
+        }
+
+      for (uint32_t i = 0; i < (*iter)->GetNDevices (); ++i)
+        {
+          Ptr<NetDevice> localNetDevice = (*iter)->GetDevice (i);
+          // only works for p2p links currently
+          if (!localNetDevice->IsPointToPoint ())
+            {
+              continue;
+            }
+          Ptr<Channel> channel = localNetDevice->GetChannel ();
+          if (channel == 0)
+            {
+              continue;
+            }
+
+          // grab the adjacent node
+          Ptr<Node> remoteNode;
+          if (channel->GetDevice (0) == localNetDevice)
+            {
+              remoteNode = (channel->GetDevice (1))->GetNode ();
+            }
+          else
+            {
+              remoteNode = (channel->GetDevice (0))->GetNode ();
+            }
+
+          // if it's not remote, don't consider it
+          if (remoteNode->GetSystemId () == systemId)
+            {
+              continue;
+            }
+
+          TimeValue delay;
+          channel->GetAttribute ("Delay", delay);
+          conns[systemId][remoteNode->GetSystemId ()] = delay.Get().ToInteger (Time::PS);
+          conns[remoteNode->GetSystemId ()][systemId] = delay.Get().ToInteger (Time::PS);
+        }
+    }
+
+  int num_conns = conns[systemId].size();
+
+  for(auto i = conns[systemId].begin(); i != conns[systemId].end(); i++){
+    m_bifparam[i->first] = new SimbricksBaseIfParams();
+    SimbricksNetIfDefaultParams(m_bifparam[i->first]);
+
+    m_bifparam[i->first]->sync_mode = (enum SimbricksBaseIfSyncMode)1;
+    m_bifparam[i->first]->sync_interval = i->second;
+    m_pollDelay[systemId] = Time(PicoSeconds (m_bifparam[i->first]->sync_interval));
+    m_bifparam[i->first]->link_latency = i->second;
+
+    int a,b;
+    if(systemId>i->first){
+      a=i->first;
+      b=systemId;
+    }
+    else{
+      a=systemId;
+      b=i->first;
+    }
+    
+    std::string shm_path = dir+"sim_shm"+std::to_string(a)+"_"+std::to_string(b), sock_path=dir+"sim_socket"+std::to_string(a)+"_"+std::to_string(b);
+    m_bifparam[i->first]->sock_path = sock_path.c_str();
+
+    int ret;
+    int sync = m_bifparam[i->first]->sync_mode;
+    m_nsif[i->first] = new SimbricksNetIf();
+    int res = access(shm_path.c_str(), R_OK);
+    if (res < 0) {
+        if (errno == ENOENT) {
+          // File not exist
+          struct SimbricksBaseIfSHMPool pool;
+          struct SimbricksBaseIf *netif = &m_nsif[i->first]->base;
+
+          // first allocate pool
+          size_t shm_size = 3200*8192;
+          if (SimbricksBaseIfSHMPoolCreate(&pool, shm_path.c_str(), shm_size)) {
+            perror("SimbricksNicIfInit: SimbricksBaseIfSHMPoolCreate failed");
+            return;
+          }
+
+          struct SimBricksBaseIfEstablishData ests[1];
+          struct SimbricksProtoNetIntro net_intro;
+          unsigned n_bifs = 0;
+
+          if (SimbricksBaseIfInit(netif, m_bifparam[i->first])) {
+            perror("SimbricksNicIfInit: SimbricksBaseIfInit net failed");
+            return;
+          }
+
+          if (SimbricksBaseIfListen(netif, &pool)) {
+            perror("SimbricksNicIfInit: SimbricksBaseIfListen net failed");
+            return;
+          }
+
+          memset(&net_intro, 0, sizeof(net_intro));
+          ests[0].base_if = netif;
+          ests[0].tx_intro = &net_intro;
+          ests[0].tx_intro_len = sizeof(net_intro);
+          ests[0].rx_intro = &net_intro;
+          ests[0].rx_intro_len = sizeof(net_intro);
+          n_bifs++;
+          
+          SimBricksBaseIfEstablish(ests, n_bifs);
+        }
+    }
+    else{
+      ret = SimbricksNetIfInit(m_nsif[i->first], m_bifparam[i->first], m_bifparam[i->first]->sock_path, &sync);
+    }
+
+    NS_ABORT_MSG_IF (m_bifparam[i->first]->sock_path == NULL, "SimbricksAdapter::Connect: unix socket"
+            " path empty");
+
+    NS_ABORT_MSG_IF (m_bifparam[i->first]->sync_mode && !sync,
+            "SimbricksAdapter::Connect: request for sync failed");
+
+    if (m_syncMode)
+      m_syncTxEvent[i->first] = Simulator::ScheduleNow (&CosimSimulatorImpl::SendSyncEvent, this, i->first);
+
+    m_pollEvent[i->first] = Simulator::ScheduleNow (&CosimSimulatorImpl::PollEvent, this, i->first);
+  }
 }
 
 void
@@ -140,9 +417,7 @@ CosimSimulatorImpl::SetScheduler (ObjectFactory schedulerFactory)
 uint32_t
 CosimSimulatorImpl::GetSystemId (void) const
 {
-  UintegerValue value;
-  sysId.GetValue(value);
-  return value.Get();
+  return systemId;
 }
 
 void
@@ -205,6 +480,14 @@ CosimSimulatorImpl::Run (void)
 {
   NS_LOG_FUNCTION (this);
   // Set the current threadId as the main threadId
+  SetupInterconnections ();
+
+  using std::chrono::high_resolution_clock;
+  using std::chrono::duration_cast;
+  using std::chrono::duration;
+  using std::chrono::milliseconds;
+	auto t1 = high_resolution_clock::now();
+
   m_main = SystemThread::Self ();
   ProcessEventsWithContext ();
   m_stop = false;
@@ -217,6 +500,10 @@ CosimSimulatorImpl::Run (void)
   // If the simulator stopped naturally by lack of events, make a
   // consistency test to check that we didn't lose any events along the way.
   NS_ASSERT (!m_events->IsEmpty () || m_unscheduledEvents == 0);
+
+  auto t2 = high_resolution_clock::now();
+  duration<double, std::milli> ms_double = t2 - t1;
+  std::cout << "Runtime for SystemID:" << GetSystemId() << " = " << ms_double.count()/1000 << std::endl;
 }
 
 void

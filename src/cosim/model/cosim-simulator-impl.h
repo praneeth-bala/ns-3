@@ -21,15 +21,32 @@
 #ifndef COSIM_SIMULATOR_IMPL_H
 #define COSIM_SIMULATOR_IMPL_H
 
+#include "ns3/simbricks-receiver.h"
 #include "ns3/simulator-impl.h"
 #include "ns3/scheduler.h"
 #include "ns3/event-impl.h"
 #include "ns3/system-thread.h"
+#include "ns3/callback.h"
+#include "ns3/nstime.h"
 #include "ns3/system-mutex.h"
-
+#include "ns3/node.h"
+#include "ns3/node-list.h"
+#include "ns3/node-container.h"
+#include "ns3/event-id.h"
 #include "ns3/ptr.h"
 
+#include <ns3/channel.h>
+#include <chrono>
 #include <list>
+#include <string>
+#include <map>
+#include <simbricks/base/cxxatomicfix.h>
+#include <unistd.h>
+extern "C" {
+#include <simbricks/network/if.h>
+#include <simbricks/network/proto.h>
+#include <simbricks/nicif/nicif.h>
+}
 
 /**
  * \file
@@ -51,6 +68,11 @@ public:
    *  Register this type.
    *  \return The object TypeId.
    */
+  std::map<uint32_t, SimbricksBaseIfParams*> m_bifparam;
+  std::map<uint32_t, Time> m_pollDelay;
+  std::string dir;
+  int systemId;
+
   static TypeId GetTypeId (void);
 
   /** Constructor. */
@@ -78,6 +100,7 @@ public:
   virtual uint32_t GetSystemId (void) const;
   virtual uint32_t GetContext (void) const;
   virtual uint64_t GetEventCount (void) const;
+  bool Transmit (Ptr<Packet> p, const Time& rxTime, uint32_t node, uint32_t dev);
 
 private:
   virtual void DoDispose (void);
@@ -86,6 +109,21 @@ private:
   void ProcessOneEvent (void);
   /** Move events from a different context into the main event queue. */
   void ProcessEventsWithContext (void);
+
+  void SetupInterconnections (void);
+
+  void ReceivedPacket (const void *buf, size_t len, uint64_t time);
+  volatile union SimbricksProtoNetMsg *AllocTx (int systemId);
+  bool Poll (int systemId);
+  void PollEvent (int systemId);
+  void SendSyncEvent (int systemId);
+
+  std::map<uint32_t, SimbricksNetIf*> m_nsif;
+  std::map<uint32_t, bool> m_isConnected;
+  std::map<uint32_t, Time> m_nextTime;
+  std::map<uint32_t, EventId> m_syncTxEvent;
+  std::map<uint32_t, EventId> m_pollEvent;
+  bool m_syncMode;
 
   /** Wrap an event with its execution context. */
   struct EventWithContext
@@ -136,6 +174,8 @@ private:
 
   /** Main execution thread. */
   SystemThread::ThreadId m_main;
+
+  std::map<uint32_t, std::map<uint32_t,uint64_t>> conns;
 };
 
 } // namespace ns3

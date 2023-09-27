@@ -26,7 +26,7 @@
 #include "ns3/object-factory.h"
 #include "ns3/net-device-container.h"
 #include "ns3/node-container.h"
-#include "ns3/cosim-manager.h"
+#include "ns3/cosim-simulator-impl.h"
 
 #include "ns3/trace-helper.h"
 
@@ -50,7 +50,7 @@ public:
    * Create a PointToPointHelperSimbricks to make life easier when creating point to
    * point networks.
    */
-  PointToPointHelperSimbricks (CosimManager &connector, int systemId);
+  PointToPointHelperSimbricks ();
   virtual ~PointToPointHelperSimbricks () {}
 
   /**
@@ -151,8 +151,6 @@ public:
    * Saves you from having to construct a temporary NodeContainer.
    */
   NetDeviceContainer Install (std::string aNode, std::string bNode);
-  std::map<uint32_t, std::map<uint32_t,uint64_t>> conns;
-  int currSystemId;
 
 private:
   /**
@@ -188,7 +186,6 @@ private:
   ObjectFactory m_queueFactory;         //!< Queue Factory
   ObjectFactory m_channelFactory;       //!< Channel Factory
   ObjectFactory m_deviceFactory;        //!< Device Factory
-  CosimManager *m_connector = NULL;
   ObjectFactory m_remoteChannelFactory; //!< Remote Channel Factory
 };
 

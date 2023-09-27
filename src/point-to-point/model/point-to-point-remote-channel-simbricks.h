@@ -26,8 +26,7 @@
 #define POINT_TO_POINT_REMOTE_CHANNEL_SIMBRICKS_H
 
 #include "point-to-point-channel.h"
-#include "ns3/cosim-manager.h"
-#include "ns3/uinteger.h"
+#include "ns3/cosim-simulator-impl.h"
 
 namespace ns3 {
 
@@ -48,7 +47,6 @@ public:
    *
    * \return The TypeId for this class
    */
-  CosimManager *m_connector = NULL;
   static TypeId GetTypeId (void);
 
   /** 
@@ -71,7 +69,6 @@ public:
    */
   virtual bool TransmitStart (Ptr<const Packet> p, Ptr<PointToPointNetDevice> src,
                               Time txTime);
-  Time getDelay();
 };
 
 } // namespace ns3
