@@ -31,6 +31,10 @@
 
 #include <cmath>
 
+using std::chrono::high_resolution_clock;
+using std::chrono::duration_cast;
+using std::chrono::duration;
+using std::chrono::milliseconds;
 
 /**
  * \file
@@ -179,6 +183,7 @@ void CosimSimulatorImpl::SendSyncEvent (int systemId)
   // std::cout << Simulator:: Now() << "\n";
 
   m_syncTxEvent[systemId] = Simulator::Schedule ( PicoSeconds (m_bifparam[systemId]->sync_interval), &CosimSimulatorImpl::SendSyncEvent, this, systemId);
+  PollEvent(systemId);
 }
 
 bool CosimSimulatorImpl::Poll (int systemId)
@@ -212,15 +217,15 @@ bool CosimSimulatorImpl::Poll (int systemId)
 
 void CosimSimulatorImpl::PollEvent (int systemId)
 {
-  // std::cout << Simulator::Now () << "\n";
+    // std::cout << Simulator::Now () << x <<"\n";
   while (Poll (systemId));
 
   if (m_syncMode){
-    while (m_nextTime[systemId] <= Simulator::Now ()){
+    while (m_nextTime[systemId] < Simulator::Now () + m_pollDelay[systemId]){
       Poll (systemId);}
 
-    m_pollEvent[systemId] = Simulator::Schedule (m_nextTime[systemId] -  Simulator::Now (),
-            &CosimSimulatorImpl::PollEvent, this, systemId);
+    // m_pollEvent[systemId] = Simulator::Schedule (m_nextTime[systemId] -  Simulator::Now (),
+    //         &CosimSimulatorImpl::PollEvent, this, systemId);
   } else {
     m_pollEvent[systemId] = Simulator::Schedule (m_pollDelay[systemId],
             &CosimSimulatorImpl::PollEvent, this, systemId);
@@ -265,7 +270,7 @@ CosimSimulatorImpl::Destroy ()
   }
 }
 
-void CosimSimulatorImpl::SetupInterconnections (){
+void CosimSimulatorImpl::InitMap (){
   NodeContainer c = NodeContainer::GetGlobal ();
   int systemId = GetSystemId();
   for (NodeContainer::Iterator iter = c.Begin (); iter != c.End (); ++iter)
@@ -312,6 +317,9 @@ void CosimSimulatorImpl::SetupInterconnections (){
           conns[remoteNode->GetSystemId ()][systemId] = delay.Get().ToInteger (Time::PS);
         }
     }
+}
+
+void CosimSimulatorImpl::SetupInterconnections (){
 
   int num_conns = conns[systemId].size();
 
@@ -321,7 +329,7 @@ void CosimSimulatorImpl::SetupInterconnections (){
 
     m_bifparam[i->first]->sync_mode = (enum SimbricksBaseIfSyncMode)1;
     m_bifparam[i->first]->sync_interval = i->second;
-    m_pollDelay[systemId] = Time(PicoSeconds (m_bifparam[i->first]->sync_interval));
+    m_pollDelay[i->first] = Time(PicoSeconds (m_bifparam[i->first]->sync_interval));
     m_bifparam[i->first]->link_latency = i->second;
 
     int a,b;
@@ -392,7 +400,7 @@ void CosimSimulatorImpl::SetupInterconnections (){
     if (m_syncMode)
       m_syncTxEvent[i->first] = Simulator::ScheduleNow (&CosimSimulatorImpl::SendSyncEvent, this, i->first);
 
-    m_pollEvent[i->first] = Simulator::ScheduleNow (&CosimSimulatorImpl::PollEvent, this, i->first);
+    // m_pollEvent[i->first] = Simulator::ScheduleNow (&CosimSimulatorImpl::PollEvent, this, i->first);
   }
 }
 
@@ -480,13 +488,15 @@ CosimSimulatorImpl::Run (void)
 {
   NS_LOG_FUNCTION (this);
   // Set the current threadId as the main threadId
+  auto t0 = high_resolution_clock::now();
+
+  InitMap();
+
+  auto t1 = high_resolution_clock::now();
+
   SetupInterconnections ();
 
-  using std::chrono::high_resolution_clock;
-  using std::chrono::duration_cast;
-  using std::chrono::duration;
-  using std::chrono::milliseconds;
-	auto t1 = high_resolution_clock::now();
+  auto t2 = high_resolution_clock::now();
 
   m_main = SystemThread::Self ();
   ProcessEventsWithContext ();
@@ -501,8 +511,8 @@ CosimSimulatorImpl::Run (void)
   // consistency test to check that we didn't lose any events along the way.
   NS_ASSERT (!m_events->IsEmpty () || m_unscheduledEvents == 0);
 
-  auto t2 = high_resolution_clock::now();
-  duration<double, std::milli> ms_double = t2 - t1;
+  auto t3 = high_resolution_clock::now();
+  duration<double, std::milli> ms_double = t3-t2+t1-t0;
   std::cout << "Runtime for SystemID:" << GetSystemId() << " = " << ms_double.count()/1000 << std::endl;
 }
 

@@ -110,6 +110,7 @@ private:
   /** Move events from a different context into the main event queue. */
   void ProcessEventsWithContext (void);
 
+  void InitMap (void);
   void SetupInterconnections (void);
 
   void ReceivedPacket (const void *buf, size_t len, uint64_t time);

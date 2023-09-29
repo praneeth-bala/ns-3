@@ -10,7 +10,7 @@
 #include <mpi.h>
 
 #define START 0.0
-#define END 2.0
+#define END 0.01
 
 using namespace ns3;
 
@@ -37,10 +37,10 @@ void sink(ns3::Ipv4Address add, ns3::Ptr<Node> node){
 
 void client(ns3::Ipv4Address add, ns3::Ptr<Node> node){
 	OnOffHelper client("ns3::TcpSocketFactory", InetSocketAddress(add, 8080));
-	client.SetAttribute ("OnTime", StringValue("ns3::ConstantRandomVariable[Constant=50]"));
+	client.SetAttribute ("OnTime", StringValue("ns3::ConstantRandomVariable[Constant=1000000000000]"));
 	client.SetAttribute ("OffTime", StringValue("ns3::ConstantRandomVariable[Constant=0]"));
-	client.SetAttribute ("DataRate", DataRateValue (DataRate ("10Mbps")));
-	client.SetAttribute ("PacketSize", UintegerValue (2000));
+	client.SetAttribute ("DataRate", DataRateValue (DataRate ("1000Mbps")));
+	client.SetAttribute ("PacketSize", UintegerValue (200));
 	
 	ApplicationContainer clientApp = client.Install (node);
 	clientApp.Start(Seconds (START));
@@ -91,7 +91,6 @@ int main (int argc, char *argv[])
         return 1;
     }
 
-	// LogComponentEnable ("PacketSink", LOG_LEVEL_INFO);
 
 	NodeContainer core;
 	NodeContainer agg[k][2];
@@ -111,11 +110,11 @@ int main (int argc, char *argv[])
 	Ipv4InterfaceContainer edgei[k][k/2][k/2];
 
 	PointToPointHelper ptp1,ptp2,ptp3;
-	ptp1.SetDeviceAttribute ("DataRate", StringValue ("1Gbps"));
+	ptp1.SetDeviceAttribute ("DataRate", StringValue ("10Gbps"));
 	ptp1.SetChannelAttribute ("Delay", StringValue ("500ns"));
-	ptp2.SetDeviceAttribute ("DataRate", StringValue ("1Gbps"));
+	ptp2.SetDeviceAttribute ("DataRate", StringValue ("10Gbps"));
 	ptp2.SetChannelAttribute ("Delay", StringValue ("500ns"));
-	ptp3.SetDeviceAttribute ("DataRate", StringValue ("1Gbps"));
+	ptp3.SetDeviceAttribute ("DataRate", StringValue ("10Gbps"));
 	ptp3.SetChannelAttribute ("Delay", StringValue ("500ns"));
 
 	InternetStackHelper stack;
@@ -203,17 +202,22 @@ int main (int argc, char *argv[])
 	}
 
 	for(int i=0;i<4;i++){
+		// if(!systemId) LogComponentEnable ("PacketSink", LOG_LEVEL_INFO);
 		if(systemId==i){
 			sink(edgei[i][0][0].GetAddress(1), edge[i][0][0].Get(1));
-			client(edgei[i][0][0].GetAddress(1),edge[1][1][1].Get(1));
+			client(edgei[i][0][0].GetAddress(1),edge[i][1][1].Get(1));
+			client(edgei[i][0][1].GetAddress(1),edge[i][1][1].Get(1));
+			client(edgei[i][0][0].GetAddress(1),edge[i][1][0].Get(1));
 			sink(edgei[i][0][1].GetAddress(1), edge[i][0][1].Get(1));
 			client(edgei[(i+1)%k][0][1].GetAddress(1),edge[i][1][0].Get(1));	
+			client(edgei[(i+2)%k][0][1].GetAddress(1),edge[i][0][0].Get(1));
+			client(edgei[(i+3)%k][0][1].GetAddress(1),edge[i][0][1].Get(1));
 		}
 	}
 
 	// Config::SetDefault("ns3::Ipv4GlobalRouting::RandomEcmpRouting",BooleanValue(true));
 	Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
-	Simulator::Stop(Seconds(END+1));
+	Simulator::Stop(Seconds(END));
 
 	MPI_Barrier(MPI_COMM_WORLD);
 	double start = MPI_Wtime();
