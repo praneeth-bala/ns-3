@@ -96,7 +96,6 @@ private:
   /** Move events from a different context into the main event queue. */
   void ProcessEventsWithContext (void);
 
-  void SendSyncEvent (int systemId);
 
 
   /** Wrap an event with its execution context. */
@@ -148,8 +147,6 @@ private:
 
   /** Main execution thread. */
   SystemThread::ThreadId m_main;
-
-  void SendSyncEvent (int systemId);
 };
 
 } // namespace ns3

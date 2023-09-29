@@ -102,10 +102,12 @@ void
 SimbricksMpiInterface::Enable (int* pargc, char*** pargv)
 {
   NS_LOG_FUNCTION (this << pargc << pargv);
-  m_enabled=true;
+  m_enabled = true;
   m_initialized = true;
-  InitMap();
-  SetupInterconnections();
+  m_sid = atoi((*pargv)[1]);
+  m_dir = (*pargv)[2];
+  // std::cout << "Sid is " << m_sid << std::flush;
+  // assert(0);
 }
 
 volatile union SimbricksProtoNetMsg* SimbricksMpiInterface::AllocTx (int systemId)
@@ -201,7 +203,7 @@ void SimbricksMpiInterface::SendSyncEvent (int systemId)
   // std::cout << Simulator:: Now() << "\n";
   PollEvent(systemId);
 
-  m_syncTxEvent[systemId] = Simulator::Schedule (PicoSeconds (m_bifparam[systemId]->sync_interval), &SimbricksSimulatorImpl::SendSyncEvent, PeekPointer(Simulator::GetImplementation()), systemId);
+  m_syncTxEvent[systemId] = Simulator::Schedule (PicoSeconds (m_bifparam[systemId]->sync_interval), &SimbricksMpiInterface::SendSyncEvent, systemId);
 }
 
 bool SimbricksMpiInterface::Poll (int systemId)
@@ -319,7 +321,7 @@ void SimbricksMpiInterface::SetupInterconnections (){
       b=i->first;
     }
     
-    std::string shm_path = dir+"sim_shm"+std::to_string(a)+"_"+std::to_string(b), sock_path=dir+"sim_socket"+std::to_string(a)+"_"+std::to_string(b);
+    std::string shm_path = m_dir+"sim_shm"+std::to_string(a)+"_"+std::to_string(b), sock_path=m_dir+"sim_socket"+std::to_string(a)+"_"+std::to_string(b);
     m_bifparam[i->first]->sock_path = sock_path.c_str();
 
     int ret;
@@ -375,7 +377,7 @@ void SimbricksMpiInterface::SetupInterconnections (){
             "SimbricksAdapter::Connect: request for sync failed");
 
     if (m_syncMode)
-      m_syncTxEvent[i->first] = Simulator::ScheduleNow (&SimbricksSimulatorImpl::SendSyncEvent, PeekPointer(Simulator::GetImplementation()), i->first);
+      m_syncTxEvent[i->first] = Simulator::ScheduleNow (&SimbricksMpiInterface::SendSyncEvent, i->first);
 
     // m_pollEvent[i->first] = Simulator::ScheduleNow (&SimbricksMpiInterface::PollEvent, this, i->first);
   }

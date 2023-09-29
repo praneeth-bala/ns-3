@@ -15,12 +15,12 @@
  */
 
 #include "ns3/core-module.h"
-#include "ns3/cosim-simulator-impl.h"
 #include "ns3/network-module.h"
 #include "ns3/internet-module.h"
 #include "ns3/point-to-point-module.h"
 #include "ns3/applications-module.h"
 #include "ns3/ipv4-global-routing-helper.h"
+#include "ns3/mpi-interface.h"
  
 using namespace ns3;
 
@@ -30,29 +30,30 @@ int
 main (int argc, char *argv[])
 {
   
-  int systemId = -1;
-  std::string dir = "";
+  // std::string sysId = "";
+  // std::string dir = "";
   
-  CommandLine cmd(__FILE__);
-  cmd.AddValue("systemId", "System ID", systemId);
-  cmd.AddValue("envDir", "Absolute environment dir to store socket and shm files", dir);
-  cmd.Parse(argc, argv);
+  // CommandLine cmd(__FILE__);
+  // cmd.AddValue("systemId", "System ID", sysId);
+  // cmd.AddValue("envDir", "Absolute environment dir to store socket and shm files", dir);
+  // cmd.Parse(argc, argv);
 
-  //Invalid args
-	if(systemId == -1 || dir == ""){
-		std::cout << "Invalid arguments, please specify a valid system ID and environment directory!" << "\n";
-	}
+  // //Invalid args
+	// if(sysId == "" || dir == ""){
+	// 	std::cout << "Invalid arguments, please specify a valid system ID and environment directory!" << "\n";
+	// }
+  int systemId = atoi(argv[1]);
 
-  GlobalValue::Bind("SimulatorImplementationType", StringValue("ns3::CosimSimulatorImpl"));
-  dynamic_cast<CosimSimulatorImpl*>(PeekPointer(Simulator::GetImplementation()))->systemId = systemId;
-  dynamic_cast<CosimSimulatorImpl*>(PeekPointer(Simulator::GetImplementation()))->dir = dir;
+
+  GlobalValue::Bind("SimulatorImplementationType", StringValue("ns3::SimbricksSimulatorImpl"));
+  MpiInterface::Enable(&argc, &argv);
 
   Time::SetResolution (Time::NS);
   // LogComponentEnable ("UdpEchoClientApplication", LOG_LEVEL_INFO);
   // LogComponentEnable ("UdpEchoServerApplication", LOG_LEVEL_INFO);
   // LogComponentEnable ("Ipv4GlobalRouting", LOG_LEVEL_ALL);
   // LogComponentEnable ("PointToPointNetDevice", LOG_LEVEL_ALL);
-  // LogComponentEnable ("SimpleChannel", LOG_LEVEL_ALL);
+
 
   NodeContainer n1,n2,n3;
   n1.Create (1,0);
@@ -63,7 +64,7 @@ main (int argc, char *argv[])
   n3.Add(n1.Get(0));
 
 
-  PointToPointHelperSimbricks pointToPoint;
+  PointToPointHelper pointToPoint;
   pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("5Mbps"));
   pointToPoint.SetChannelAttribute ("Delay", StringValue ("2ms"));
 
@@ -86,6 +87,7 @@ main (int argc, char *argv[])
   if(systemId==0){
     LogComponentEnable ("UdpEchoClientApplication", LOG_LEVEL_INFO);
     LogComponentEnable ("UdpEchoServerApplication", LOG_LEVEL_INFO);
+    // LogComponentEnable ("SimbricksMpiInterface", LOG_LEVEL_ALL);
     UdpEchoServerHelper echoServer (9);
 
     ApplicationContainer serverApps = echoServer.Install (n1.Get (0));
@@ -103,6 +105,7 @@ main (int argc, char *argv[])
   }
 
   if(systemId==1){
+    // LogComponentEnable ("SimbricksMpiInterface", LOG_LEVEL_ALL);
     UdpEchoServerHelper echoServer (9);
 
     ApplicationContainer serverApps = echoServer.Install (n1.Get (1));
@@ -142,5 +145,8 @@ main (int argc, char *argv[])
   Simulator::Run ();
 
   Simulator::Destroy ();
+
+  MpiInterface::Disable();
+
   return 0;
 }

@@ -201,7 +201,15 @@ SimbricksSimulatorImpl::Run (void)
 {
   NS_LOG_FUNCTION (this);
   // Set the current threadId as the main threadId
-  // auto t0 = high_resolution_clock::now();
+  auto t0 = high_resolution_clock::now();
+
+  SimbricksMpiInterface::InitMap();
+
+  auto t1 = high_resolution_clock::now();
+
+  SimbricksMpiInterface::SetupInterconnections();
+
+  auto t2 = high_resolution_clock::now();
 
   m_main = SystemThread::Self ();
   ProcessEventsWithContext ();
@@ -216,9 +224,9 @@ SimbricksSimulatorImpl::Run (void)
   // consistency test to check that we didn't lose any events along the way.
   NS_ASSERT (!m_events->IsEmpty () || m_unscheduledEvents == 0);
 
-  // auto t3 = high_resolution_clock::now();
-  // duration<double, std::milli> ms_double = t3-t2+t1-t0;
-  // std::cout << "Runtime for SystemID:" << GetSystemId() << " = " << ms_double.count()/1000 << std::endl;
+  auto t3 = high_resolution_clock::now();
+  duration<double, std::milli> ms_double = t3-t2+t1-t0;
+  std::cout << "Runtime for SystemID:" << GetSystemId() << " = " << ms_double.count()/1000 << std::endl;
 }
 
 void
@@ -430,9 +438,5 @@ SimbricksSimulatorImpl::GetEventCount (void) const
   return m_eventCount;
 }
 
-void SimbricksMpiInterface::SendSyncEvent (int systemId)
-{
-  SimbricksMpiInterface::SendSyncEvent(systemId);
-}
 
 } // namespace ns3

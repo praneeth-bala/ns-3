@@ -11,7 +11,7 @@ mkdir -p $DIR/build/env
 
 for (( c=0; c<$2; c++ ))
 do 
-$DIR/build/scratch/$1 --systemId=$c --envDir=$DIR/build/env/ &
+$DIR/build/scratch/$1 $c $DIR/build/env/ &
 echo "Process $c with PID $! started"
 sleep 2
 done

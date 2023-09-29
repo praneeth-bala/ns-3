@@ -5,7 +5,7 @@
 #include "ns3/point-to-point-module.h"
 #include "ns3/applications-module.h"
 #include "ns3/ipv4-global-routing-helper.h"
-#include "ns3/cosim-simulator-impl.h"
+#include "ns3/mpi-interface.h"
 
 #define START 0.0
 #define END 0.01
@@ -47,25 +47,23 @@ void client(ns3::Ipv4Address add, ns3::Ptr<Node> node){
 
 int main (int argc, char *argv[])
 {
-	int systemId = -1;
+	std::string sysId = "";
 	std::string dir = "";
-  
+	
 	CommandLine cmd(__FILE__);
-	cmd.AddValue("systemId", "System ID", systemId);
+	cmd.AddValue("systemId", "System ID", sysId);
 	cmd.AddValue("envDir", "Absolute environment dir to store socket and shm files", dir);
 	cmd.Parse(argc, argv);
 
 	//Invalid args
-	if(systemId == -1 || dir == ""){
-		std::cout << "Invalid arguments, please specify a valid system ID and environment directory!" << "\n";
-	}
+		if(sysId == "" || dir == ""){
+			std::cout << "Invalid arguments, please specify a valid system ID and environment directory!" << "\n";
+		}
+	int systemId = stoi(sysId);
 
-	GlobalValue::Bind("SimulatorImplementationType", StringValue("ns3::CosimSimulatorImpl"));
-	dynamic_cast<CosimSimulatorImpl*>(PeekPointer(Simulator::GetImplementation()))->systemId = systemId;
-	dynamic_cast<CosimSimulatorImpl*>(PeekPointer(Simulator::GetImplementation()))->dir = dir;
-	// connector.m_bifparam.sync_interval = 100UL*1000UL;
-	// connector.m_pollDelay = Time(PicoSeconds (connector.m_bifparam.sync_interval));
-	// connector.m_bifparam.link_latency = 500UL*1000UL;
+
+	GlobalValue::Bind("SimulatorImplementationType", StringValue("ns3::SimbricksSimulatorImpl"));
+	MpiInterface::Enable(&argc, &argv);
 
 	int k = 4;
 	int core_k = (k/2)*(k/2);
@@ -88,7 +86,7 @@ int main (int argc, char *argv[])
 	Ipv4InterfaceContainer agginti[k][k/2][k/2];
 	Ipv4InterfaceContainer edgei[k][k/2][k/2];
 
-	PointToPointHelperSimbricks ptp1;
+	PointToPointHelper ptp1;
 	ptp1.SetDeviceAttribute ("DataRate", StringValue ("10Gbps"));
 	ptp1.SetChannelAttribute ("Delay", StringValue ("500ns"));
 
@@ -198,5 +196,8 @@ int main (int argc, char *argv[])
 	Simulator::Run ();
 
 	Simulator::Destroy ();
+
+	MpiInterface::Disable();
+
 	return 0;
 } 

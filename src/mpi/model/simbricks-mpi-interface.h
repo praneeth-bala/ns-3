@@ -30,7 +30,6 @@
 #include "ns3/buffer.h"
 #include "ns3/mpi-receiver.h"
 #include "ns3/simulator-impl.h"
-#include "simbricks-simulator-impl.h"
 #include "ns3/node.h"
 #include "ns3/node-list.h"
 #include "ns3/node-container.h"
@@ -51,12 +50,6 @@ extern "C" {
 #include "parallel-communication-interface.h"
 
 namespace ns3 {
-
-/**
- * maximum MPI message size for easy
- * buffer creation
- */
-const uint32_t MAX_MPI_MSG_SIZE = 2000;
 
 
 
@@ -113,20 +106,20 @@ public:
    */
   virtual void SendPacket (Ptr<Packet> p, const Time &rxTime, uint32_t node, uint32_t dev);
 
-  static uint32_t m_sid;
-  static bool     m_initialized;
-  static bool     m_enabled;
-  static uint32_t m_size;
-  static std::map<uint32_t, SimbricksNetIf*> m_nsif;
-  static std::map<uint32_t, bool> m_isConnected;
-  static std::map<uint32_t, Time> m_nextTime;
-  static std::map<uint32_t, EventId> m_syncTxEvent;
-  static std::map<uint32_t, EventId> m_pollEvent;
+  inline static uint32_t m_sid;
+  inline static bool     m_initialized;
+  inline static bool     m_enabled;
+  inline static uint32_t m_size;
+  inline static std::map<uint32_t, SimbricksNetIf*> m_nsif;
+  inline static std::map<uint32_t, bool> m_isConnected;
+  inline static std::map<uint32_t, Time> m_nextTime;
+  inline static std::map<uint32_t, EventId> m_syncTxEvent;
+  inline static std::map<uint32_t, EventId> m_pollEvent;
   static const bool m_syncMode = true;
-  static std::map<uint32_t, std::map<uint32_t,uint64_t>> conns;
-  static std::map<uint32_t, SimbricksBaseIfParams*> m_bifparam;
-  static std::map<uint32_t, Time> m_pollDelay;
-  static std::string dir;
+  inline static std::map<uint32_t, std::map<uint32_t,uint64_t>> conns;
+  inline static std::map<uint32_t, SimbricksBaseIfParams*> m_bifparam;
+  inline static std::map<uint32_t, Time> m_pollDelay;
+  inline static std::string m_dir;
 
   static volatile union SimbricksProtoNetMsg *AllocTx (int systemId);
   static void ReceivedPacket (const void *buf, size_t len, uint64_t time);
