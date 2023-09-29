@@ -15,14 +15,12 @@ def build(bld):
     if not bld.env['ENABLE_COSIM']:
         return
 
-    module = bld.create_ns3_module('cosim', ['internet', 'network', 'mpi', 'core'])
+    module = bld.create_ns3_module('cosim', ['internet', 'network', 'core'])
     module.source = [
         'model/cosim.cc',
         'model/cosim-adapter.cc',
         'model/cosim-adapter-nicif.cc',
         'model/cosim-nicif.cc',
-        'model/simbricks-receiver.cc',
-        'model/cosim-simulator-impl.cc',
         'helper/cosim-helper.cc',
         ]
 
@@ -38,8 +36,6 @@ def build(bld):
         'model/cosim-adapter.h',
         'model/cosim-adapter-nicif.h',
         'model/cosim-nicif.h',
-        'model/simbricks-receiver.h',
-        'model/cosim-simulator-impl.h',
         'helper/cosim-helper.h',
         ]
 

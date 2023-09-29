@@ -27,6 +27,7 @@
 
 #include "null-message-mpi-interface.h"
 #include "granted-time-window-mpi-interface.h"
+#include "simbricks-mpi-interface.h"
 
 namespace ns3 {
 
@@ -92,6 +93,11 @@ MpiInterface::Enable (int* pargc, char*** pargv)
       else if (simulationType.compare ("ns3::DistributedSimulatorImpl") == 0)
         {
           g_parallelCommunicationInterface = new GrantedTimeWindowMpiInterface ();
+          useDefault = false;
+        }
+      else if (simulationType.compare ("ns3::SimbricksSimulatorImpl") == 0)
+        {
+          g_parallelCommunicationInterface = new SimbricksMpiInterface ();
           useDefault = false;
         }
     }
