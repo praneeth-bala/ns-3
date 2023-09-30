@@ -39,6 +39,7 @@
 #include <list>
 #include <string>
 #include <map>
+#include <vector>
 #include <simbricks/base/cxxatomicfix.h>
 #include <unistd.h>
 extern "C" {
@@ -117,6 +118,7 @@ public:
   static std::map<uint32_t, EventId> m_pollEvent;
   static bool m_syncMode;
   static std::map<uint32_t, std::map<uint32_t,uint64_t>> conns;
+  static std::map<uint64_t, std::vector<uint32_t>> connsRev;
   static std::map<uint32_t, SimbricksBaseIfParams*> m_bifparam;
   static std::map<uint32_t, Time> m_pollDelay;
   static std::string m_dir;
@@ -126,7 +128,7 @@ public:
   static uint8_t Poll (int systemId);
   static void InitMap (void);
   static void SetupInterconnections (void);
-  static void SendSyncEvent (int systemId);
+  static void SendSyncEvent (uint64_t delay);
 };
 
 } // namespace ns3

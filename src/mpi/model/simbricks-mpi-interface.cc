@@ -51,6 +51,7 @@ std::map<uint32_t, EventId> SimbricksMpiInterface::m_syncTxEvent;
 std::map<uint32_t, EventId> SimbricksMpiInterface::m_pollEvent;
 bool SimbricksMpiInterface::m_syncMode = true;
 std::map<uint32_t, std::map<uint32_t,uint64_t>> SimbricksMpiInterface::conns;
+std::map<uint64_t, std::vector<uint32_t>> SimbricksMpiInterface::connsRev;
 std::map<uint32_t, SimbricksBaseIfParams*> SimbricksMpiInterface::m_bifparam;
 std::map<uint32_t, Time> SimbricksMpiInterface::m_pollDelay;
 std::string SimbricksMpiInterface::m_dir;
@@ -70,10 +71,10 @@ SimbricksMpiInterface::Destroy ()
 {
   NS_LOG_FUNCTION (this);
   for(auto i = m_bifparam.begin(); i != m_bifparam.end(); i++) delete i->second;
-  for(auto i = m_nsif.begin(); i != m_nsif.end(); i++){
-    Simulator::Cancel (m_syncTxEvent[i->first]);
-    // Simulator::Cancel (m_pollEvent[i->first]);
-  }
+  // for(auto i = m_nsif.begin(); i != m_nsif.end(); i++){
+  //   Simulator::Cancel (m_syncTxEvent[i->first]);
+  //   // Simulator::Cancel (m_pollEvent[i->first]);
+  // }
   for(auto i = m_nsif.begin(); i != m_nsif.end(); i++) delete i->second;
 }
 
@@ -203,19 +204,23 @@ void SimbricksMpiInterface::ReceivedPacket (const void *buf, size_t len, uint64_
                                     &MpiReceiver::Receive, pMpiRec, packet);
 }
 
-void SimbricksMpiInterface::SendSyncEvent (int systemId)
+void SimbricksMpiInterface::SendSyncEvent (uint64_t delay)
 {
-  volatile union SimbricksProtoNetMsg *msg = AllocTx (systemId);
-  NS_ABORT_MSG_IF (msg == NULL,
-          "SimbricksAdapter::AllocTx: SimbricksNetIfOutAlloc failed");
 
-  // msg->sync.own_type = SIMBRICKS_PROTO_NET_N2D_MSG_SYNC |
-  //     SIMBRICKS_PROTO_NET_N2D_OWN_DEV;
-  SimbricksBaseIfOutSend(&m_nsif[systemId]->base, &msg->base, SIMBRICKS_PROTO_MSG_TYPE_SYNC);
+  for(int i=0; i<connsRev[delay].size(); i++){
+    // std::cout << "\n" << connsRev[delay].size() << " " << delay;
+    int systemId = connsRev[delay][i];
+    volatile union SimbricksProtoNetMsg *msg = AllocTx (systemId);
+    NS_ABORT_MSG_IF (msg == NULL,
+            "SimbricksAdapter::AllocTx: SimbricksNetIfOutAlloc failed");
 
-  while (Poll (systemId));
+    // msg->sync.own_type = SIMBRICKS_PROTO_NET_N2D_MSG_SYNC |
+    //     SIMBRICKS_PROTO_NET_N2D_OWN_DEV;
+    SimbricksBaseIfOutSend(&m_nsif[systemId]->base, &msg->base, SIMBRICKS_PROTO_MSG_TYPE_SYNC);
 
-  m_syncTxEvent[systemId] = Simulator::Schedule (PicoSeconds (m_bifparam[systemId]->sync_interval), &SimbricksMpiInterface::SendSyncEvent, systemId);
+    while (Poll (systemId));
+  }
+  Simulator::Schedule (PicoSeconds (delay), &SimbricksMpiInterface::SendSyncEvent, delay);
 }
 
 uint8_t SimbricksMpiInterface::Poll (int systemId)
@@ -290,8 +295,29 @@ void SimbricksMpiInterface::InitMap (){
 
           TimeValue delay;
           channel->GetAttribute ("Delay", delay);
-          conns[systemId][remoteNode->GetSystemId ()] = delay.Get().ToInteger (Time::PS);
-          conns[remoteNode->GetSystemId ()][systemId] = delay.Get().ToInteger (Time::PS);
+          uint64_t delayps = delay.Get().ToInteger (Time::PS);
+          if(conns.find(systemId)!=conns.end() && conns[systemId].find(remoteNode->GetSystemId())!=conns[systemId].end()){
+            conns[systemId][remoteNode->GetSystemId ()] = std::min(delayps, conns[systemId][remoteNode->GetSystemId ()]);
+            conns[remoteNode->GetSystemId ()][systemId] = std::min(delayps, conns[systemId][remoteNode->GetSystemId ()]);
+          }
+          else{
+            conns[systemId][remoteNode->GetSystemId ()] = delayps;
+            conns[remoteNode->GetSystemId ()][systemId] = delayps;
+          }
+
+          delayps = conns[systemId][remoteNode->GetSystemId ()];
+
+          if(connsRev.find(delayps)==connsRev.end()){
+            connsRev[delayps] = std::vector<uint32_t>(0);
+            Simulator::ScheduleNow (&SimbricksMpiInterface::SendSyncEvent, delayps);
+          }
+          bool flag = true;
+          for(int i=0; i<connsRev[delayps].size(); i++){
+            if(connsRev[delayps][i]==remoteNode->GetSystemId ())
+              flag = false;            
+          }
+          if(flag)
+            connsRev[delayps].push_back(remoteNode->GetSystemId ());
         }
     }
 }
@@ -374,10 +400,6 @@ void SimbricksMpiInterface::SetupInterconnections (){
 
     NS_ABORT_MSG_IF (m_bifparam[i->first]->sync_mode && !sync,
             "SimbricksAdapter::Connect: request for sync failed");
-
-    if (m_syncMode)
-      m_syncTxEvent[i->first] = Simulator::ScheduleNow (&SimbricksMpiInterface::SendSyncEvent, i->first);
-
     // m_pollEvent[i->first] = Simulator::ScheduleNow (&SimbricksMpiInterface::PollEvent, this, i->first);
   }
 }
