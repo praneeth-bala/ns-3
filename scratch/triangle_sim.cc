@@ -48,7 +48,7 @@ main (int argc, char *argv[])
   GlobalValue::Bind("SimulatorImplementationType", StringValue("ns3::SimbricksSimulatorImpl"));
   MpiInterface::Enable(&argc, &argv);
 
-  Time::SetResolution (Time::NS);
+  Time::SetResolution (Time::PS);
   // LogComponentEnable ("UdpEchoClientApplication", LOG_LEVEL_INFO);
   // LogComponentEnable ("UdpEchoServerApplication", LOG_LEVEL_INFO);
   // LogComponentEnable ("Ipv4GlobalRouting", LOG_LEVEL_ALL);

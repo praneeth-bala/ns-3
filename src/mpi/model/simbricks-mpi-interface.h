@@ -106,25 +106,24 @@ public:
    */
   virtual void SendPacket (Ptr<Packet> p, const Time &rxTime, uint32_t node, uint32_t dev);
 
-  inline static uint32_t m_sid;
-  inline static bool     m_initialized;
-  inline static bool     m_enabled;
-  inline static uint32_t m_size;
-  inline static std::map<uint32_t, SimbricksNetIf*> m_nsif;
-  inline static std::map<uint32_t, bool> m_isConnected;
-  inline static std::map<uint32_t, Time> m_nextTime;
-  inline static std::map<uint32_t, EventId> m_syncTxEvent;
-  inline static std::map<uint32_t, EventId> m_pollEvent;
-  static const bool m_syncMode = true;
-  inline static std::map<uint32_t, std::map<uint32_t,uint64_t>> conns;
-  inline static std::map<uint32_t, SimbricksBaseIfParams*> m_bifparam;
-  inline static std::map<uint32_t, Time> m_pollDelay;
-  inline static std::string m_dir;
+  static uint32_t m_sid;
+  static bool     m_initialized;
+  static bool     m_enabled;
+  static uint32_t m_size;
+  static std::map<uint32_t, SimbricksNetIf*> m_nsif;
+  static std::map<uint32_t, bool> m_isConnected;
+  static std::map<uint32_t, uint64_t> m_nextTime;
+  static std::map<uint32_t, EventId> m_syncTxEvent;
+  static std::map<uint32_t, EventId> m_pollEvent;
+  static bool m_syncMode;
+  static std::map<uint32_t, std::map<uint32_t,uint64_t>> conns;
+  static std::map<uint32_t, SimbricksBaseIfParams*> m_bifparam;
+  static std::map<uint32_t, Time> m_pollDelay;
+  static std::string m_dir;
 
   static volatile union SimbricksProtoNetMsg *AllocTx (int systemId);
   static void ReceivedPacket (const void *buf, size_t len, uint64_t time);
-  static bool Poll (int systemId);
-  static void PollEvent (int systemId);
+  static uint8_t Poll (int systemId);
   static void InitMap (void);
   static void SetupInterconnections (void);
   static void SendSyncEvent (int systemId);

@@ -47,19 +47,19 @@ void client(ns3::Ipv4Address add, ns3::Ptr<Node> node){
 
 int main (int argc, char *argv[])
 {
-	std::string sysId = "";
-	std::string dir = "";
+	// std::string sysId = "";
+	// std::string dir = "";
 	
-	CommandLine cmd(__FILE__);
-	cmd.AddValue("systemId", "System ID", sysId);
-	cmd.AddValue("envDir", "Absolute environment dir to store socket and shm files", dir);
-	cmd.Parse(argc, argv);
+	// CommandLine cmd(__FILE__);
+	// cmd.AddValue("systemId", "System ID", sysId);
+	// cmd.AddValue("envDir", "Absolute environment dir to store socket and shm files", dir);
+	// cmd.Parse(argc, argv);
 
-	//Invalid args
-		if(sysId == "" || dir == ""){
-			std::cout << "Invalid arguments, please specify a valid system ID and environment directory!" << "\n";
-		}
-	int systemId = stoi(sysId);
+	// //Invalid args
+	// 	if(sysId == "" || dir == ""){
+	// 		std::cout << "Invalid arguments, please specify a valid system ID and environment directory!" << "\n";
+	// 	}
+	int systemId = atoi(argv[1]);
 
 
 	GlobalValue::Bind("SimulatorImplementationType", StringValue("ns3::SimbricksSimulatorImpl"));

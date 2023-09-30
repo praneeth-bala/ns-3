@@ -196,6 +196,23 @@ SimbricksSimulatorImpl::ProcessEventsWithContext (void)
     }
 }
 
+uint64_t
+SimbricksSimulatorImpl::NextTs (void) const
+{
+  // If local MPI task is has no more events or stop was called
+  // next event time is infinity.
+  if (m_events->IsEmpty ())
+    {
+      return GetMaximumSimulationTime ().GetTimeStep ();
+    }
+  else
+    {
+      Scheduler::Event ev = m_events->PeekNext ();
+      return ev.key.m_ts;
+    }
+}
+
+
 void
 SimbricksSimulatorImpl::Run (void)
 {

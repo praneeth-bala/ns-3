@@ -40,7 +40,20 @@ namespace ns3 {
 
 NS_LOG_COMPONENT_DEFINE ("SimbricksMpiInterface");
 
-
+uint32_t SimbricksMpiInterface::m_sid;
+bool SimbricksMpiInterface::m_initialized;
+bool SimbricksMpiInterface::m_enabled;
+uint32_t SimbricksMpiInterface::m_size;
+std::map<uint32_t, SimbricksNetIf*> SimbricksMpiInterface::m_nsif;
+std::map<uint32_t, bool> SimbricksMpiInterface:: m_isConnected;
+std::map<uint32_t, uint64_t> SimbricksMpiInterface::m_nextTime;
+std::map<uint32_t, EventId> SimbricksMpiInterface::m_syncTxEvent;
+std::map<uint32_t, EventId> SimbricksMpiInterface::m_pollEvent;
+bool SimbricksMpiInterface::m_syncMode = true;
+std::map<uint32_t, std::map<uint32_t,uint64_t>> SimbricksMpiInterface::conns;
+std::map<uint32_t, SimbricksBaseIfParams*> SimbricksMpiInterface::m_bifparam;
+std::map<uint32_t, Time> SimbricksMpiInterface::m_pollDelay;
+std::string SimbricksMpiInterface::m_dir;
 
 TypeId 
 SimbricksMpiInterface::GetTypeId (void)
@@ -57,11 +70,10 @@ SimbricksMpiInterface::Destroy ()
 {
   NS_LOG_FUNCTION (this);
   for(auto i = m_bifparam.begin(); i != m_bifparam.end(); i++) delete i->second;
-  // for(auto i = m_nsif.begin(); i != m_nsif.end(); i++){
-  //   if (m_syncMode)
-  //     Simulator::Cancel (m_syncTxEvent[i->first]);
-  //   Simulator::Cancel (m_pollEvent[i->first]);
-  // }
+  for(auto i = m_nsif.begin(); i != m_nsif.end(); i++){
+    Simulator::Cancel (m_syncTxEvent[i->first]);
+    // Simulator::Cancel (m_pollEvent[i->first]);
+  }
   for(auto i = m_nsif.begin(); i != m_nsif.end(); i++) delete i->second;
 }
 
@@ -200,22 +212,22 @@ void SimbricksMpiInterface::SendSyncEvent (int systemId)
   // msg->sync.own_type = SIMBRICKS_PROTO_NET_N2D_MSG_SYNC |
   //     SIMBRICKS_PROTO_NET_N2D_OWN_DEV;
   SimbricksBaseIfOutSend(&m_nsif[systemId]->base, &msg->base, SIMBRICKS_PROTO_MSG_TYPE_SYNC);
-  // std::cout << Simulator:: Now() << "\n";
-  PollEvent(systemId);
+
+  while (Poll (systemId));
 
   m_syncTxEvent[systemId] = Simulator::Schedule (PicoSeconds (m_bifparam[systemId]->sync_interval), &SimbricksMpiInterface::SendSyncEvent, systemId);
 }
 
-bool SimbricksMpiInterface::Poll (int systemId)
+uint8_t SimbricksMpiInterface::Poll (int systemId)
 {
   volatile union SimbricksProtoNetMsg *msg;
   uint8_t ty;
 
   msg = SimbricksNetIfInPoll (m_nsif[systemId], Simulator::GetMaximumSimulationTime ().ToInteger (Time::PS));
-  m_nextTime[systemId] = PicoSeconds (SimbricksNetIfInTimestamp (m_nsif[systemId]));
+  m_nextTime[systemId] = SimbricksNetIfInTimestamp (m_nsif[systemId]);
   
   if (!msg)
-    return false;
+    return -1;
 
   ty = SimbricksNetIfInType(m_nsif[systemId], msg);
   switch (ty) {
@@ -231,22 +243,9 @@ bool SimbricksMpiInterface::Poll (int systemId)
   }
 
   SimbricksNetIfInDone (m_nsif[systemId], msg);
-  return true;
+  return ty;
 }
 
-void SimbricksMpiInterface::PollEvent (int systemId)
-{
-    // std::cout << Simulator::Now () << x <<"\n";
-  while (Poll (systemId));
-
-  if (m_syncMode){
-    while (m_nextTime[systemId] < Simulator::Now () + m_pollDelay[systemId]){
-      Poll (systemId);}
-
-    // m_pollEvent[systemId] = Simulator::Schedule (m_nextTime[systemId] -  Simulator::Now (),
-    //         &SimbricksMpiInterface::PollEvent, this, systemId);
-  }
-}
 
 void SimbricksMpiInterface::InitMap (){
   NodeContainer c = NodeContainer::GetGlobal ();
