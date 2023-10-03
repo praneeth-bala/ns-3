@@ -30,23 +30,11 @@ int
 main (int argc, char *argv[])
 {
   
-	// std::string sysId = "";
-	// std::string dir = "";
-	
-	// CommandLine cmd(__FILE__);
-	// cmd.AddValue("systemId", "System ID", sysId);
-	// cmd.AddValue("envDir", "Absolute environment dir to store socket and shm files", dir);
-	// cmd.Parse(argc, argv);
-
-	// //Invalid args
-	// 	if(sysId == "" || dir == ""){
-	// 		std::cout << "Invalid arguments, please specify a valid system ID and environment directory!" << "\n";
-	// 	}
-	int systemId = atoi(argv[1]);
-
-
 	GlobalValue::Bind("SimulatorImplementationType", StringValue("ns3::SimbricksSimulatorImpl"));
 	MpiInterface::Enable(&argc, &argv);
+
+  uint32_t systemId = MpiInterface::GetSystemId();
+  uint32_t systemCount = MpiInterface::GetSize();
 
   Time::SetResolution (Time::NS);
   LogComponentEnable ("UdpEchoClientApplication", LOG_LEVEL_INFO);

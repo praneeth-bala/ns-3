@@ -118,7 +118,8 @@ SimbricksMpiInterface::Enable (int* pargc, char*** pargv)
   m_enabled = true;
   m_initialized = true;
   m_sid = atoi((*pargv)[1]);
-  m_dir = (*pargv)[2];
+  m_size = atoi((*pargv)[2]);
+  m_dir = (*pargv)[3];
   // std::cout << "Sid is " << m_sid << std::flush;
   // assert(0);
 }

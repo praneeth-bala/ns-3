@@ -1,4 +1,8 @@
 #!/bin/bash
+
+# Usage:
+# ./run_sim.sh <filename> <total_systems>
+
 set -e
 DIR="$(dirname "$(readlink -f "$0")")"
 cd $DIR
@@ -11,7 +15,7 @@ mkdir -p $DIR/build/env
 
 for (( c=0; c<$2; c++ ))
 do 
-$DIR/build/scratch/$1 $c $DIR/build/env/ &
+$DIR/build/scratch/$1 $c $2 $DIR/build/env/ &
 echo "Process $c with PID $! started"
 sleep 2
 done
