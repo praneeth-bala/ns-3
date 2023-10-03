@@ -25,6 +25,9 @@ def build(bld):
         'helper/udp-client-server-helper.cc',
         'helper/udp-echo-helper.cc',
         'helper/three-gpp-http-helper.cc',
+        'model/http-client.cc',
+        'model/http-server.cc',
+        'helper/http-client-server-helper.cc',
         ]
 
     applications_test = bld.create_ns3_module_test_library('applications')
@@ -52,6 +55,9 @@ def build(bld):
         'model/three-gpp-http-server.h',
         'model/three-gpp-http-header.h',
         'model/three-gpp-http-variables.h',
+        'model/http-client.h',
+        'model/http-server.h',
+        'helper/http-client-server-helper.h',
         'helper/bulk-send-helper.h',
         'helper/on-off-helper.h',
         'helper/packet-sink-helper.h',
