@@ -25,6 +25,8 @@
 #include "ns3/tcp-socket-base.h"
 #include "ns3/drop-tail-queue.h"
 #include "http-server.h"
+#include <iostream>
+#include <fstream>
 
 namespace ns3 {
 
@@ -83,8 +85,8 @@ void HttpServer::StartApplication (void)
                           "In other words, use TCP instead of UDP.");
         }
 
-      InetSocketAddress local = InetSocketAddress (Ipv4Address::GetAny (),
-                                                         m_port);
+      InetSocketAddress local = InetSocketAddress (Ipv4Address ("0.0.0.0"),
+                                                         80);
       m_socket->Bind (local);
       m_socket->Listen ();
       m_socket->SetAcceptCallback (MakeCallback (&HttpServer::HandleRequest, this),
@@ -125,11 +127,27 @@ HttpServer::HandleAccept (Ptr<Socket> s, const Address& address)
   s->SetRecvCallback (MakeCallback (&HttpServer::HandleReceive, this));
 }
 
+static std::ofstream m_file;
+
+static void
+CwndChange (uint32_t oldCwnd, uint32_t newCwnd)
+{
+  NS_LOG_UNCOND (Simulator::Now ().GetSeconds () << "\t" << newCwnd);
+  m_file << Simulator::Now ().GetSeconds () << "\t" << newCwnd << "\n";
+}
+
+static void
+RTTChange (ns3::Time oldCwnd, ns3::Time newCwnd)
+{
+  NS_LOG_UNCOND (Simulator::Now ().GetSeconds () << "\t" << newCwnd.GetMilliSeconds());
+  // m_file << Simulator::Now ().GetSeconds () << "\t" << newCwnd << "\n";
+}
 
 void
 HttpServer::HandleReceive (Ptr<Socket> s)
 {
   NS_LOG_FUNCTION (this << s);
+  m_file.open("/workspaces/simbricks/env/in.txt");
 
   HttpHeader httpHeaderIn;
   Ptr<Packet> packet = s->Recv();
@@ -146,29 +164,31 @@ HttpServer::HandleReceive (Ptr<Socket> s)
   string url = httpHeaderIn.GetUrl();
 
   NS_LOG_INFO ("HttpServer >> Client requesting a " + url);
+  s->TraceConnectWithoutContext ("CongestionWindow", MakeCallback (&CwndChange));
+  // s->TraceConnectWithoutContext ("RTT", MakeCallback (&RTTChange));
 
-  if (url == "main/object")
+  if (url == "./curl.txt")
     {
       //Scale, Shape and Mean data was taken from paper "An HTTP Web Traffic Model Based on the
       //Top One Million Visited Web Pages" by Rastin Pries et. al (Table II).
-      Ptr<WeibullRandomVariable> mainObjectSizeStream = CreateObject<WeibullRandomVariable> ();
-      mainObjectSizeStream->SetAttribute("Scale", DoubleValue (19104.9));
-      mainObjectSizeStream->SetAttribute("Shape", DoubleValue (0.771807));
-      uint32_t mainObjectSize = mainObjectSizeStream->GetInteger();
+      // Ptr<WeibullRandomVariable> mainObjectSizeStream = CreateObject<WeibullRandomVariable> ();
+      // mainObjectSizeStream->SetAttribute("Scale", DoubleValue (19104.9));
+      // mainObjectSizeStream->SetAttribute("Shape", DoubleValue (0.771807));
+      uint32_t mainObjectSize  = 51466333;
 
-      Ptr<ExponentialRandomVariable> numOfInlineObjStream = CreateObject<ExponentialRandomVariable> ();
-      numOfInlineObjStream->SetAttribute ("Mean", DoubleValue (31.9291));
-      uint32_t numOfInlineObj = numOfInlineObjStream->GetInteger();
+      // Ptr<ExponentialRandomVariable> numOfInlineObjStream = CreateObject<ExponentialRandomVariable> ();
+      // numOfInlineObjStream->SetAttribute ("Mean", DoubleValue (31.9291));
+      // uint32_t numOfInlineObj = numOfInlineObjStream->GetInteger();
 
       //Setting response
       HttpHeader httpHeaderOut;
       httpHeaderOut.SetRequest(false);
-      httpHeaderOut.SetVersion("HTTP/1.1");
+      httpHeaderOut.SetVersion("HTTP/1.0");
       httpHeaderOut.SetStatusCode("200");
       httpHeaderOut.SetPhrase("OK");
       httpHeaderOut.SetHeaderField("ContentLength", mainObjectSize);
       httpHeaderOut.SetHeaderField("ContentType", "main/object");
-      httpHeaderOut.SetHeaderField("NumOfInlineObjects", numOfInlineObj);
+      httpHeaderOut.SetHeaderField("NumOfInlineObjects", 1);
 
       //Verifying if the buffer can store this packet size
       if (mainObjectSize > tcpBufSize)
@@ -180,9 +200,9 @@ HttpServer::HandleReceive (Ptr<Socket> s)
       Ptr<Packet> p = Create<Packet> (mainObjectSize);
       p->AddHeader(httpHeaderOut);
 
-      NS_LOG_INFO ("HttpServer >> Sending response to client. Main Object Size ("
-                   << mainObjectSize << " bytes). NumOfInlineObjects ("
-                   << numOfInlineObj << ").");
+      // NS_LOG_INFO ("HttpServer >> Sending response to client. Main Object Size ("
+      //              << mainObjectSize << " bytes). NumOfInlineObjects ("
+      //              << numOfInlineObj << ").");
       s->Send(p);
     }
   else

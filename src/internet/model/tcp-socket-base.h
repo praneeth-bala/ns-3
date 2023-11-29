@@ -1152,6 +1152,7 @@ protected:
    * \param header TcpHeader to which add the option to
    */
   void AddOptionTimestamp (TcpHeader& header);
+  void AddOptionMss (TcpHeader& header);
 
   /**
    * \brief Performs a safe subtraction between a and b (a-b)
@@ -1246,6 +1247,7 @@ protected:
   uint8_t m_rcvWindShift      {0};    //!< Window shift to apply to outgoing segments
   uint8_t m_sndWindShift      {0};    //!< Window shift to apply to incoming segments
   bool     m_timestampEnabled {true}; //!< Timestamp option enabled
+  bool     m_sendMss {false};
   uint32_t m_timestampToEcho  {0};    //!< Timestamp to echo
 
   EventId m_sendPendingDataEvent {}; //!< micro-delay event to send pending data

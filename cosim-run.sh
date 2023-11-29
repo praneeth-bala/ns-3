@@ -9,3 +9,4 @@ example=$2
 shift 2
 
 exec build/src/$module/examples/ns3-dev-$example-debug "$@"
+# exec build/scratch/$example "$@"

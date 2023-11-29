@@ -54,6 +54,7 @@
 #include "tcp-header.h"
 #include "tcp-option-winscale.h"
 #include "tcp-option-ts.h"
+#include "tcp-option-rfc793.h"
 #include "tcp-option-sack-permitted.h"
 #include "tcp-option-sack.h"
 #include "tcp-congestion-ops.h"
@@ -1009,6 +1010,7 @@ TcpSocketBase::DoConnect (void)
   if (m_state == CLOSED || m_state == LISTEN || m_state == SYN_SENT || m_state == LAST_ACK || m_state == CLOSE_WAIT)
     { // send a SYN packet and change state into SYN_SENT
       // send a SYN packet with ECE and CWR flags set if sender is ECN capable
+      m_sendMss = true;
       if (m_tcb->m_useEcn == TcpSocketState::On)
         {
           SendEmptyPacket (TcpHeader::SYN | TcpHeader::ECE | TcpHeader::CWR);
@@ -3925,6 +3927,11 @@ TcpSocketBase::AddOptions (TcpHeader& header)
     {
       AddOptionTimestamp (header);
     }
+  if (m_sendMss)
+    {
+      AddOptionMss (header);
+      m_sendMss = false;
+    }
 }
 
 void
@@ -4093,6 +4100,18 @@ TcpSocketBase::AddOptionTimestamp (TcpHeader& header)
   header.AppendOption (option);
   NS_LOG_INFO (m_node->GetId () << " Add option TS, ts=" <<
                option->GetTimestamp () << " echo=" << m_timestampToEcho);
+}
+
+void
+TcpSocketBase::AddOptionMss (TcpHeader& header)
+{
+  NS_LOG_FUNCTION (this << header);
+
+  Ptr<TcpOptionMSS> option = CreateObject<TcpOptionMSS> ();
+
+  option->SetMSS (GetSegSize());
+
+  header.AppendOption (option);
 }
 
 void TcpSocketBase::UpdateWindowSize (const TcpHeader &header)

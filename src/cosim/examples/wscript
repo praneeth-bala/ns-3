@@ -16,7 +16,4 @@ def build(bld):
     obj = bld.create_ns3_program('cosim-netif-example', ['cosim', 'core', 'network'])
     obj.source = 'NetifTwoHost.cc'
 
-    obj = bld.create_ns3_program('cosim-http-example', ['cosim', 'core', 'network'])
-    obj.source = 'cosim-http.cc'
-
 
