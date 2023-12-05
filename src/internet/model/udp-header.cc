@@ -200,16 +200,16 @@ UdpHeader::Serialize (Buffer::Iterator start) const
     {
       i.WriteU16 (0);
 
-      if (m_calcChecksum)
-        {
-          uint16_t headerChecksum = CalculateHeaderChecksum (start.GetSize ());
-          i = start;
-          uint16_t checksum = i.CalculateIpChecksum (start.GetSize (), headerChecksum);
+      // if (m_calcChecksum)
+      //   {
+      //     uint16_t headerChecksum = CalculateHeaderChecksum (start.GetSize ());
+      //     i = start;
+      //     uint16_t checksum = i.CalculateIpChecksum (start.GetSize (), headerChecksum);
 
-          i = start;
-          i.Next (6);
-          i.WriteU16 (checksum);
-        }
+      //     i = start;
+      //     i.Next (6);
+      //     i.WriteU16 (checksum);
+      //   }
     }
   else
     {
@@ -225,14 +225,14 @@ UdpHeader::Deserialize (Buffer::Iterator start)
   m_payloadSize = i.ReadNtohU16 () - GetSerializedSize ();
   m_checksum = i.ReadU16 ();
 
-  if (m_calcChecksum)
-    {
-      uint16_t headerChecksum = CalculateHeaderChecksum (start.GetSize ());
-      i = start;
-      uint16_t checksum = i.CalculateIpChecksum (start.GetSize (), headerChecksum);
+  // if (m_calcChecksum)
+  //   {
+  //     uint16_t headerChecksum = CalculateHeaderChecksum (start.GetSize ());
+  //     i = start;
+  //     uint16_t checksum = i.CalculateIpChecksum (start.GetSize (), headerChecksum);
 
-      m_goodChecksum = (checksum == 0);
-    }
+  //     m_goodChecksum = (checksum == 0);
+  //   }
 
   return GetSerializedSize ();
 }

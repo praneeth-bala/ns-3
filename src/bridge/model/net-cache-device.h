@@ -25,6 +25,7 @@
 #include <stdint.h>
 #include <string>
 #include <map>
+#include <vector>
 
 /**
  * \file
@@ -77,6 +78,7 @@ public:
    */
   static TypeId GetTypeId (void);
   NetCacheDevice ();
+  NetCacheDevice (std::vector<std::string>);
   virtual ~NetCacheDevice ();
 
   /** 
@@ -210,6 +212,7 @@ private:
   Mac48Address m_address; //!< MAC address of the NetDevice
   Time m_expirationTime;  //!< time it takes for learned MAC state to expire
   bool m_change_direction;
+  std::map<std::string, std::pair<std::string, bool>> m_cache;
 
   /**
    * \ingroup bridge

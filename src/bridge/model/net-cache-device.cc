@@ -23,6 +23,11 @@
 #include "ns3/boolean.h"
 #include "ns3/simulator.h"
 #include "ns3/uinteger.h"
+#include "ns3/ipv4-header.h"
+#include "ns3/tcp-header.h"
+#include "ns3/udp-header.h"
+#include <iostream>
+#include <fstream>
 
 /**
  * \file
@@ -71,6 +76,18 @@ NetCacheDevice::NetCacheDevice ()
 {
   NS_LOG_FUNCTION_NOARGS ();
   m_channel = CreateObject<BridgeChannel> ();
+}
+
+NetCacheDevice::NetCacheDevice (std::vector<std::string> keys)
+  : m_node (0),
+    m_ifIndex (0),
+    m_change_direction (false)
+{
+  NS_LOG_FUNCTION_NOARGS ();
+  m_channel = CreateObject<BridgeChannel> ();
+  for (int i=0;i<keys.size();i++){
+    m_cache[keys[i].substr(0,6)] = std::make_pair<std::string, bool>("v",false);
+  }
 }
 
 NetCacheDevice::~NetCacheDevice()
@@ -131,20 +148,66 @@ NetCacheDevice::ReceiveFromDevice (Ptr<NetDevice> incomingPort, Ptr<const Packet
         }
       else
         {
+          if(protocol != 0x0800){
+            ForwardUnicast (incomingPort, packet, protocol, src48, dst48);
+            break;
+          }
           Ptr<const Packet> pkt = P4(packet);
           if(m_change_direction){
-            ForwardUnicast (incomingPort, packet, protocol, dst48, src48);
+            ForwardUnicast (GetLearnedState(dst48), pkt, protocol, dst48, src48);
             m_change_direction = false;
           }
-          else
-            ForwardUnicast (incomingPort, packet, protocol, src48, dst48);
+          else{
+            ForwardUnicast (incomingPort, pkt, protocol, src48, dst48);
+          }
         }
       break;
     }
 }
 
 Ptr<const Packet> NetCacheDevice::P4 (Ptr<const Packet> pkt){
-  return pkt;
+  Ptr<Packet> packet = pkt->Copy ();
+
+  uint32_t len = packet->GetSize();
+  uint8_t *buf = new uint8_t[len];
+  packet->CopyData(buf, len);
+
+  int offset = 28;
+  uint8_t op = buf[offset+2];
+  std::string key = std::string((char*)(&buf[offset+3]), 6);
+  std::string value = std::string((char*)(&buf[offset+9]), 4);
+
+  if(m_cache.find(key)!=m_cache.end()){
+    if (op == 2) {
+        m_cache[key].second = 0;
+    }
+    else if (op == 3 || op == 4) {
+        m_cache[key].second = 1;
+    }
+    if (m_cache[key].second == 1) {
+        if (op == 1) {
+            memcpy(&buf[offset+9], m_cache[key].first.c_str(), 4);
+            buf[offset+2] = (uint8_t)5;
+            uint32_t* srcip = ((uint32_t*)(buf+12));
+            uint32_t* destip = ((uint32_t*)(buf+16));
+            uint32_t tempip = *srcip;
+            *srcip = *destip;
+            *destip = tempip;
+            uint16_t* srcp = ((uint16_t*)(buf+20));
+            uint16_t* destp = ((uint16_t*)(buf+22));
+            uint16_t tempp = *srcp;
+            *srcp = *destp;
+            *destp = tempp;
+            m_change_direction = true;
+        }
+        else if (op == 3 || op == 4) {
+            m_cache[key].first = value;
+        }
+    }
+  }
+
+  packet = Create<Packet>(buf, len);
+  return packet;
 }
 
 void
