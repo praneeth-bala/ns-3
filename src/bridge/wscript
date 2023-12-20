@@ -5,6 +5,7 @@ def build(bld):
     obj.source = [
         'model/bridge-net-device.cc',
         'model/net-cache-device.cc',
+        'model/pegasus-device.cc',
         'model/bridge-channel.cc',
         'helper/bridge-helper.cc',
         ]
@@ -13,6 +14,7 @@ def build(bld):
     headers.source = [
         'model/bridge-net-device.h',
         'model/net-cache-device.h',
+        'model/pegasus-device.h',
         'model/bridge-channel.h',
         'helper/bridge-helper.h',
         ]
