@@ -37,14 +37,14 @@ namespace ns3 {
 
 class Node;
 
-#define OP_GET          0x0
-#define OP_PUT          0x1
-#define OP_DEL          0x2
-#define OP_REP_R        0x3
-#define OP_REP_W        0x4
-#define OP_RC_REQ       0x5
-#define OP_RC_ACK       0x6
-#define OP_PUT_FWD      0x7
+#define OP_GET_D          0x0
+#define OP_PUT_D          0x1
+#define OP_DEL_D          0x2
+#define OP_REP_R_D        0x3
+#define OP_REP_W_D        0x4
+#define OP_RC_REQ_D       0x5
+#define OP_RC_ACK_D       0x6
+#define OP_PUT_FWD_D      0x7
 
 class PegasusMap {
   public:

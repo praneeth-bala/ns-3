@@ -145,6 +145,7 @@ PegasusDevice::ReceiveFromDevice (Ptr<NetDevice> incomingPort, Ptr<const Packet>
         }
       else
         {
+          // ForwardUnicast (incomingPort, packet, protocol, src48, dst48);
           if(protocol != 0x0800){
             ForwardUnicast (incomingPort, packet, protocol, src48, dst48);
             break;
@@ -186,27 +187,29 @@ Ptr<const Packet> PegasusDevice::P4 (Ptr<const Packet> pkt){
 
 
   switch(pegheader->op){
-    case OP_PUT:{
-      ver = m_next_version++;
-      // Select replica from all servers
-      pegheader->server_id = 0;
-      udpheader->dst = m_server_mapping[pegheader->server_id].udp;
-      ipheader->dst = m_server_mapping[pegheader->server_id].ip;
-      m_dst48 = m_server_mapping[pegheader->server_id].mac;
-      break;
-    }
-    case OP_GET:{
+    case OP_PUT_D:{
       if(m_replica_set.find(keyhash)!=m_replica_set.end() && !m_replica_set[keyhash].empty()){
-        // Select replica from set
-        pegheader->server_id = 0;
+        ver = m_next_version++;
+        // Select replica from all servers
+        pegheader->server_id = rand()%m_server_mapping.size();
         udpheader->dst = m_server_mapping[pegheader->server_id].udp;
         ipheader->dst = m_server_mapping[pegheader->server_id].ip;
         m_dst48 = m_server_mapping[pegheader->server_id].mac;
       }
       break;
     }
-    case OP_REP_R:
-    case OP_REP_W:{
+    case OP_GET_D:{
+      if(m_replica_set.find(keyhash)!=m_replica_set.end() && !m_replica_set[keyhash].empty()){
+        // Select replica from set
+        pegheader->server_id = *m_replica_set[keyhash].begin();
+        udpheader->dst = m_server_mapping[pegheader->server_id].udp;
+        ipheader->dst = m_server_mapping[pegheader->server_id].ip;
+        m_dst48 = m_server_mapping[pegheader->server_id].mac;
+      }
+      break;
+    }
+    case OP_REP_R_D:
+    case OP_REP_W_D:{
       if(m_replica_set.find(keyhash)!=m_replica_set.end()){
         if(ver > m_ver_completed[keyhash]){
           m_ver_completed[keyhash] = ver;

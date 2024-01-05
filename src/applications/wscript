@@ -27,6 +27,7 @@ def build(bld):
         'helper/three-gpp-http-helper.cc',
         'model/http-client.cc',
         'model/http-server.cc',
+        'model/kvstore.cc',
         'helper/http-client-server-helper.cc',
         ]
 
@@ -57,6 +58,7 @@ def build(bld):
         'model/three-gpp-http-variables.h',
         'model/http-client.h',
         'model/http-server.h',
+        'model/kvstore.h',
         'helper/http-client-server-helper.h',
         'helper/bulk-send-helper.h',
         'helper/on-off-helper.h',
