@@ -1,6 +1,6 @@
 #!/bin/bash
 if [ "$COSIM_PATH" = "" ] ; then
-  COSIM_PATH="/home/praneeth/git/simbricks"
+  COSIM_PATH="/homes/praneethbala/simbricks"
 fi
 
 export CPPFLAGS="-I$COSIM_PATH/lib"

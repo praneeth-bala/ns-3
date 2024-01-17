@@ -17,7 +17,6 @@ for (( c=0; c<$2; c++ ))
 do 
 $DIR/build/scratch/$1 $c $2 $DIR/build/env/ &
 echo "Process $c with PID $! started"
-sleep 2
 done
 
 trap "killall $1; echo SIGINT; exit 1" INT

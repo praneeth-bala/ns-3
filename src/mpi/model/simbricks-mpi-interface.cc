@@ -55,6 +55,10 @@ std::map<uint64_t, std::vector<uint32_t>> SimbricksMpiInterface::connsRev;
 std::map<uint32_t, SimbricksBaseIfParams*> SimbricksMpiInterface::m_bifparam;
 std::map<uint32_t, Time> SimbricksMpiInterface::m_pollDelay;
 std::string SimbricksMpiInterface::m_dir;
+unsigned SimbricksMpiInterface::n_bifs = 0;
+struct SimBricksBaseIfEstablishData* SimbricksMpiInterface::ests;
+std::map<uint32_t, SimbricksProtoNetIntro*> SimbricksMpiInterface::m_net_intro;
+std::map<uint32_t, SimbricksBaseIfSHMPool*> SimbricksMpiInterface::m_pool;
 
 TypeId 
 SimbricksMpiInterface::GetTypeId (void)
@@ -218,7 +222,9 @@ void SimbricksMpiInterface::SendSyncEvent (uint64_t delay)
     // msg->sync.own_type = SIMBRICKS_PROTO_NET_N2D_MSG_SYNC |
     //     SIMBRICKS_PROTO_NET_N2D_OWN_DEV;
     SimbricksBaseIfOutSend(&m_nsif[systemId]->base, &msg->base, SIMBRICKS_PROTO_MSG_TYPE_SYNC);
-
+  }
+  for(int i=0; i<connsRev[delay].size(); i++){
+    int systemId = connsRev[delay][i];
     while (Poll (systemId));
   }
   Simulator::Schedule (PicoSeconds (delay), &SimbricksMpiInterface::SendSyncEvent, delay);
@@ -327,6 +333,7 @@ void SimbricksMpiInterface::SetupInterconnections (){
 
   int systemId = MpiInterface::GetSystemId();
   int num_conns = conns[systemId].size();
+  ests = (struct SimBricksBaseIfEstablishData*)malloc(sizeof(struct SimBricksBaseIfEstablishData)*num_conns);
 
   for(auto i = conns[systemId].begin(); i != conns[systemId].end(); i++){
     m_bifparam[i->first] = new SimbricksBaseIfParams();
@@ -353,56 +360,44 @@ void SimbricksMpiInterface::SetupInterconnections (){
     int ret;
     int sync = m_bifparam[i->first]->sync_mode;
     m_nsif[i->first] = new SimbricksNetIf();
-    int res = access(shm_path.c_str(), R_OK);
-    if (res < 0) {
-        if (errno == ENOENT) {
-          // File not exist
-          struct SimbricksBaseIfSHMPool pool;
-          struct SimbricksBaseIf *netif = &m_nsif[i->first]->base;
+    if(a==systemId) {while(access(sock_path.c_str(), R_OK));}
+    else {
+        m_pool[i->first] = new SimbricksBaseIfSHMPool();
+        struct SimbricksBaseIf *netif = &m_nsif[i->first]->base;
 
-          // first allocate pool
-          size_t shm_size = 3200*8192;
-          if (SimbricksBaseIfSHMPoolCreate(&pool, shm_path.c_str(), shm_size)) {
-            perror("SimbricksNicIfInit: SimbricksBaseIfSHMPoolCreate failed");
-            return;
-          }
-
-          struct SimBricksBaseIfEstablishData ests[1];
-          struct SimbricksProtoNetIntro net_intro;
-          unsigned n_bifs = 0;
-
-          if (SimbricksBaseIfInit(netif, m_bifparam[i->first])) {
-            perror("SimbricksNicIfInit: SimbricksBaseIfInit net failed");
-            return;
-          }
-
-          if (SimbricksBaseIfListen(netif, &pool)) {
-            perror("SimbricksNicIfInit: SimbricksBaseIfListen net failed");
-            return;
-          }
-
-          memset(&net_intro, 0, sizeof(net_intro));
-          ests[0].base_if = netif;
-          ests[0].tx_intro = &net_intro;
-          ests[0].tx_intro_len = sizeof(net_intro);
-          ests[0].rx_intro = &net_intro;
-          ests[0].rx_intro_len = sizeof(net_intro);
-          n_bifs++;
-          
-          SimBricksBaseIfEstablish(ests, n_bifs);
+        // first allocate pool
+        size_t shm_size = 3200*8192;
+        if (SimbricksBaseIfSHMPoolCreate(m_pool[i->first], shm_path.c_str(), shm_size)) {
+        perror("SimbricksNicIfInit: SimbricksBaseIfSHMPoolCreate failed");
+        exit(0);
+        return;
         }
+        if (SimbricksBaseIfInit(netif, m_bifparam[i->first])) {
+        perror("SimbricksNicIfInit: SimbricksBaseIfInit net failed");
+        exit(0);
+        return;
+        }
+        if (SimbricksBaseIfListen(netif, m_pool[i->first])) {
+        perror("SimbricksNicIfInit: SimbricksBaseIfListen net failed");
+        exit(0);
+        return;
+        }
+        m_net_intro[i->first] = new SimbricksProtoNetIntro();
+        memset(m_net_intro[i->first], 0, sizeof(*m_net_intro[i->first]));
+        ests[n_bifs].base_if = netif;
+        ests[n_bifs].tx_intro = m_net_intro[i->first];
+        ests[n_bifs].tx_intro_len = sizeof(*m_net_intro[i->first]);
+        ests[n_bifs].rx_intro = m_net_intro[i->first];
+        ests[n_bifs].rx_intro_len = sizeof(*m_net_intro[i->first]);
+        
+        ++n_bifs;
+        continue;
     }
-    else{
-      ret = SimbricksNetIfInit(m_nsif[i->first], m_bifparam[i->first], m_bifparam[i->first]->sock_path, &sync);
-    }
-
-    NS_ABORT_MSG_IF (m_bifparam[i->first]->sock_path == NULL, "SimbricksAdapter::Connect: unix socket"
-            " path empty");
-
-    NS_ABORT_MSG_IF (m_bifparam[i->first]->sync_mode && !sync,
-            "SimbricksAdapter::Connect: request for sync failed");
+    if(SimbricksNetIfInit(m_nsif[i->first], m_bifparam[i->first], m_bifparam[i->first]->sock_path, &sync)) exit(0);
     // m_pollEvent[i->first] = Simulator::ScheduleNow (&SimbricksMpiInterface::PollEvent, this, i->first);
   }
+  if(n_bifs) SimBricksBaseIfEstablish(ests, n_bifs);
+  delete[] ests;
 }
 
 

@@ -122,6 +122,10 @@ public:
   static std::map<uint32_t, SimbricksBaseIfParams*> m_bifparam;
   static std::map<uint32_t, Time> m_pollDelay;
   static std::string m_dir;
+  static struct SimBricksBaseIfEstablishData *ests;
+  static unsigned n_bifs;
+  static std::map<uint32_t, SimbricksProtoNetIntro*> m_net_intro;
+  static std::map<uint32_t, SimbricksBaseIfSHMPool*> m_pool;
 
   static volatile union SimbricksProtoNetMsg *AllocTx (int systemId);
   static void ReceivedPacket (const void *buf, size_t len, uint64_t time);
