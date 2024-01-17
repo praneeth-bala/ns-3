@@ -22,6 +22,7 @@
 #include "ns3/mac48-address.h"
 #include "ns3/nstime.h"
 #include "ns3/bridge-channel.h"
+#include "ns3/application.h"
 #include <stdint.h>
 #include <string>
 #include <map>
@@ -125,7 +126,7 @@ public:
    */
   static TypeId GetTypeId (void);
   PegasusDevice ();
-  virtual void Init(std::vector<uint32_t> keys, std::map<uint8_t, PegasusMap> servers);
+  virtual void Init(std::vector<uint32_t> keys, std::map<uint8_t, PegasusMap> servers, std::vector<Application*> client_apps);
   virtual ~PegasusDevice ();
 
   /** 
@@ -266,6 +267,7 @@ private:
   std::map<uint8_t, PegasusMap> m_server_mapping;
   std::map<uint32_t, uint32_t> m_ver_completed;
   std::map<uint32_t, std::set<uint8_t>> m_replica_set;
+  std::vector<Application*> m_client_apps;
 
 
   /**

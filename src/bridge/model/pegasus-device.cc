@@ -82,7 +82,7 @@ PegasusDevice::~PegasusDevice()
   NS_LOG_FUNCTION_NOARGS ();
 }
 
-void PegasusDevice::Init(std::vector<uint32_t> keys, std::map<uint8_t, PegasusMap> servers){
+void PegasusDevice::Init(std::vector<uint32_t> keys, std::map<uint8_t, PegasusMap> servers, std::vector<Application*> client_apps){
   m_ver_matched = false;
   m_next_version = 2;
   m_server_mapping = servers;
@@ -90,6 +90,7 @@ void PegasusDevice::Init(std::vector<uint32_t> keys, std::map<uint8_t, PegasusMa
     m_ver_completed[key] = 1;
     m_replica_set[key] = std::set<uint8_t>();
   }
+  m_client_apps = client_apps;
 }
 
 void
@@ -105,6 +106,8 @@ PegasusDevice::DoDispose ()
   m_node = 0;
   NetDevice::DoDispose ();
 }
+
+static bool app_started = false;
 
 void
 PegasusDevice::ReceiveFromDevice (Ptr<NetDevice> incomingPort, Ptr<const Packet> packet, uint16_t protocol,
@@ -149,6 +152,13 @@ PegasusDevice::ReceiveFromDevice (Ptr<NetDevice> incomingPort, Ptr<const Packet>
           if(protocol != 0x0800){
             ForwardUnicast (incomingPort, packet, protocol, src48, dst48);
             break;
+          }
+          if(!app_started){
+            app_started = true;
+            for(auto i: m_client_apps){
+              Simulator::Schedule (Time(Seconds(0)), &Application::StartApplication, i);
+              Simulator::Schedule (Time(Seconds(1)), &Application::StopApplication, i);
+            }
           }
           m_incomingPort = incomingPort;
           m_src48 = src48;

@@ -366,7 +366,7 @@ inline void setupServer(bool pegasus, Ptr<Node> node, InetSocketAddress add, int
     appA->SetStopTime (Seconds (stop));
 }
 
-inline void setupClient(bool pegasus, int interval, double get_ratio, Ptr<Node> node, InetSocketAddress add, int id, int num_nodes, double start, double stop, std::vector<InetSocketAddress> clients){
+inline Ptr<Application> setupClient(bool pegasus, int interval, double get_ratio, Ptr<Node> node, InetSocketAddress add, int id, int num_nodes, double start, double stop, std::vector<InetSocketAddress> clients){
     Ptr<Client> appA = CreateObject<Client> (pegasus, id, add, num_nodes, interval, get_ratio);
     for(int i=0;i<clients.size();i++){
         appA->Setup (clients[i], i);
@@ -374,6 +374,7 @@ inline void setupClient(bool pegasus, int interval, double get_ratio, Ptr<Node> 
     node->AddApplication (appA);
     appA->SetStartTime (Seconds (start));
     appA->SetStopTime (Seconds (stop));
+    return appA;
 }
 
 }

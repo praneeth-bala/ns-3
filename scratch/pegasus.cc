@@ -109,7 +109,7 @@ int main (int argc, char *argv[]){
     bridge->SetAddress (Mac48Address::Allocate ());
 
     NS_LOG_INFO ("Create Node");
-    int num_clients = 1;
+    int num_clients = 9;
     int num_servers = 2;
     int num_total = num_clients + num_servers;
 
@@ -142,7 +142,7 @@ int main (int argc, char *argv[]){
     int count_port = 12345;
     for(int i=0;i<num_servers;i++){
         Ipv4Address add = Ipv4Address((start_add + std::to_string(count_add)).c_str());
-        setupIp(pairs[i].Get(1), netpairs[i].Get(1), add);
+        // setupIp(pairs[i].Get(1), netpairs[i].Get(1), add);
         servers.push_back(InetSocketAddress (add, count_port));
         count_add++;
         count_port++;  
@@ -156,12 +156,14 @@ int main (int argc, char *argv[]){
         count_port++;
     }
     
-    for(int i=0;i<num_servers;i++){
-        setupServer(pegasus, pairs[i].Get(1), servers[i], i, num_servers, 1, 10, clients);
-    }
+    // for(int i=0;i<num_servers;i++){
+    //     setupServer(pegasus, pairs[i].Get(1), servers[i], i, num_servers, 1, 10, clients);
+    // }
 
+    std::vector<Application*> client_apps;
     for(int i=num_servers;i<num_total;i++){
-        setupClient(pegasus, 10, 0.3, pairs[i].Get(1), clients[i-num_servers], i-num_servers, num_servers, 2, 3, servers);
+        Ptr<Application> app = setupClient(pegasus, 100, 0.3, pairs[i].Get(1), clients[i-num_servers], i-num_servers, num_servers, 1000, 1000, servers);
+        client_apps.push_back(PeekPointer(app));
     }
 
     NS_LOG_INFO ("Create CosimDevices and add them to bridge");
@@ -177,20 +179,20 @@ int main (int argc, char *argv[]){
     std::map<uint8_t, PegasusMap> pegmaps;
     PegasusMap pegmapA;
     inet_aton("10.0.0.3", (in_addr*)(&pegmapA.ip));
-    pegmapA.mac = Mac48Address::ConvertFrom(netpairs[0].Get(1)->GetAddress());
-    pegmapA.port = netpairs[0].Get(1);
+    pegmapA.mac = Mac48Address("aa:aa:aa:aa:aa:aa");
+    // pegmapA.port = ptpDevA.Get(1);
     pegmapA.udp = htons(12345);
     pegmaps[0] = pegmapA;
 
     PegasusMap pegmapB;
     inet_aton("10.0.0.4", (in_addr*)(&pegmapB.ip));
-    pegmapB.mac = Mac48Address::ConvertFrom(netpairs[1].Get(1)->GetAddress());
-    pegmapB.port = netpairs[1].Get(1);
+    pegmapB.mac = Mac48Address("aa:aa:aa:aa:aa:ab");
+    // pegmapB.port = ptpDevB.Get(1);
     pegmapB.udp = htons(12346);
     pegmaps[1] = pegmapB;
 
 
-    bridge->Init(keys, pegmaps);
+    bridge->Init(keys, pegmaps, client_apps);
 
     NS_LOG_INFO ("Run Emulation.");
     Simulator::Run ();

@@ -123,7 +123,6 @@ public:
   typedef void (*StateTransitionCallback)(const std::string &oldState,
                                           const std::string &newState);
 
-private:
   /**
    * \brief Application specific startup code
    *

@@ -20,9 +20,6 @@
 #include <fstream>
 #include <random>
 #include <signal.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
 #include "ns3/trace-helper.h"
 #include "ns3/abort.h"
 #include "ns3/core-module.h"
@@ -32,7 +29,6 @@
 #include "ns3/ipv4-static-routing-helper.h"
 #include "ns3/ipv4-list-routing-helper.h"
 #include "ns3/net-cache-device.h"
-#include "ns3/pegasus-device.h"
 #include "ns3/http-header.h"
 #include "ns3/cosim.h"
 #include "ns3/point-to-point-helper.h"
@@ -59,7 +55,7 @@ bool AddCosimPort (std::string arg)
     return true;
 }
 
-bool pegasus = true;
+bool pegasus = false;
 
 void setupIp(Ptr<Node> node, Ptr<NetDevice> dev, Ipv4Address add){
     Ptr<Ipv4> ipv4 = node->GetObject<Ipv4> ();
@@ -84,12 +80,12 @@ int main (int argc, char *argv[]){
 
     GlobalValue::Bind ("ChecksumEnabled", BooleanValue (true));
     std::ifstream in;
-    std::vector<uint32_t> keys;
-    in.open("/workspaces/simbricks/experiments/pegasus/artifact_eval/ns3hash");
+    std::vector<std::string> keys;
+    in.open("/workspaces/simbricks/experiments/pegasus/artifact_eval/ns3keys");
     std::string key;
     for (int i = 0; i < 128; i++) {
         getline(in, key);
-        keys.push_back(atoi(key.c_str()));
+        keys.push_back(key);
     }
     in.close();
 
@@ -104,7 +100,7 @@ int main (int argc, char *argv[]){
     pointToPointSR.SetChannelAttribute ("Delay", TimeValue (linkLatency));
 
     NS_LOG_INFO ("Create BridgeDevice");
-    Ptr<PegasusDevice> bridge = CreateObject<PegasusDevice> ();
+    Ptr<NetCacheDevice> bridge = CreateObject<NetCacheDevice> (keys);
     // Ptr<BridgeNetDevice> bridge = CreateObject<BridgeNetDevice> ();
     bridge->SetAddress (Mac48Address::Allocate ());
 
@@ -173,24 +169,6 @@ int main (int argc, char *argv[]){
         bridge->AddBridgePort (device);
         device->Start ();
     }
-
-    std::map<uint8_t, PegasusMap> pegmaps;
-    PegasusMap pegmapA;
-    inet_aton("10.0.0.3", (in_addr*)(&pegmapA.ip));
-    pegmapA.mac = Mac48Address::ConvertFrom(netpairs[0].Get(1)->GetAddress());
-    pegmapA.port = netpairs[0].Get(1);
-    pegmapA.udp = htons(12345);
-    pegmaps[0] = pegmapA;
-
-    PegasusMap pegmapB;
-    inet_aton("10.0.0.4", (in_addr*)(&pegmapB.ip));
-    pegmapB.mac = Mac48Address::ConvertFrom(netpairs[1].Get(1)->GetAddress());
-    pegmapB.port = netpairs[1].Get(1);
-    pegmapB.udp = htons(12346);
-    pegmaps[1] = pegmapB;
-
-
-    bridge->Init(keys, pegmaps);
 
     NS_LOG_INFO ("Run Emulation.");
     Simulator::Run ();
